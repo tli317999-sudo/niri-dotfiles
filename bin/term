@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# term — 优先 ghostty，没装就退回 konsole
+set -uo pipefail
+if command -v ghostty >/dev/null 2>&1; then
+    exec ghostty
+elif command -v konsole >/dev/null 2>&1; then
+    exec konsole
+else
+    notify-send -a "终端" "找不到 ghostty 或 konsole"
+fi

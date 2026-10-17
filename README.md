@@ -13,6 +13,8 @@
 | `fuzzel/` | 应用启动器配色 |
 | `mako/` | 通知配置 |
 | `konsole/` | 终端配色方案（Catppuccin Mocha / Tokyo Night） |
+| `swaync/` | 通知中心布局（配色由 theme 渲染） |
+| `gtklock/` | 锁屏配置（壁纸由 lock 脚本写入） |
 | `kde/` | KDE 配色方案、Darkly 控件风格透明度、SDDM drop-in |
 | `themes/` | 主题系统：色板 + 模板 + 渲染器 |
 | `bin/` | 各种小脚本（见下） |
@@ -26,6 +28,10 @@
 | `matugen-palette` | 把 matugen 的 JSON 转成 theme 能读的色板 |
 | `theme` | 整套换肤：niri / waybar / fuzzel / mako / KDE / Konsole / GTK |
 | `apply-kde-colors` | 把配色文件的所有 `[Colors:*]` 段写进 kdeglobals（绕开 plasma 工具的合并问题） |
+| `term` | 开终端：有 ghostty 用它，否则回退 konsole |
+| `shot` | 区域截图 → satty 标注 → 存盘 + 进剪贴板 |
+| `lock` | 锁屏：有 gtklock 用它，否则回退 swaylock |
+| `vol` / `bright` | 音量/亮度：有 swayosd 就弹 OSD，否则静默调 |
 | `wifi-menu` / `wifi-toggle` | fuzzel 选网 / 开关无线电 |
 | `power-menu` | 电源菜单（锁屏/注销/挂起/重启/关机） |
 | `grey-folders` | 生成灰文件夹图标主题（基于 Papirus 覆盖） |
@@ -136,10 +142,11 @@ WALL_CONTRAST=0.3 wallpaper   # 取色对比度更高
 | `Mod+B` / `Mod+Shift+B` | 换壁纸 / 随机壁纸 |
 | `Mod+Alt+T` | 换主题 |
 | `Mod+S` | 系统设置 |
-| `Mod+Shift+S` | 区域截图（存盘 + 进剪贴板） |
+| `Mod+Shift+S` | 区域截图 → satty 标注（`Ctrl+S` 存盘，`Esc` 取消） |
+| `Mod+Alt+N` | 打开/关闭通知中心（右键 = 免打扰） |
 | `Mod+Alt+V` | 剪贴板历史 |
 | `Mod+1..9` | 切工作区 |
-| `Super+Alt+L` | 锁屏 |
+| `Super+Alt+L` | 锁屏（gtklock，当前壁纸做背景） |
 | `Mod+Shift+E` | 退出 niri |
 | `Mod+Shift+/` | 全部快捷键 |
 
@@ -153,6 +160,10 @@ WALL_CONTRAST=0.3 wallpaper   # 取色对比度更高
 6. **`prefer-no-csd` 后 Qt 应用没有标题栏**，所谓「顶栏」其实是工具栏/headerbar。
 7. **PowerDevil 在 niri 下不会自启**（systemd user service 没有 `[Install]`），不启动的话电源管理页面是空的。
 8. **Papirus-Dark 的各尺寸目录是指向 Papirus 的符号链接**，直接复制改色改的是没人用的副本；只覆盖 places 下文件夹图标、其余继承才划算（4.4M vs 1.6G）。
+
+9. **GTK CSS 不支持 `!important`** —— 写了不会报错退出，只是在日志里丢一句 `Junk at end of value` 然后整条规则失效。改 headerbar 要用 `@define-color headerbar_bg_color` + `:root { --headerbar-bg-color }`，但 libadwaita 会把 alpha 拍平（实测 0.8/0.5/0.3 得到同一像素），所以 GTK 顶栏只能跟颜色、不能半透明。Qt 侧（Darkly）的透明度是真的有效。
+10. **satty 的参数要看清版本** —— 0.22 没有 `--copy-to-clipboard`，只有 `--copy-command`；传错参数它会**静默退到后台失败**（退出码 2），表现为"框选完什么都没出现"。另外 niri 会平铺新窗口，得加 `--floating-hack`，否则标注窗口可能被塞到别的列去。
+11. **`spawn-sh` 只吃一个字符串** —— `spawn-sh "cmd" "arg"` 会报 `unexpected argument`，要写成 `spawn-sh "cmd arg"`。而 `spawn` 才是多参数形式。
 
 ## 许可
 

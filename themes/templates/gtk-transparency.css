@@ -1,15 +1,32 @@
 /* 由 theme 脚本自动生成，主题切换时会重新渲染，不要手改这个文件的主色 */
 /* 顶栏颜色取自色板里的 GTK_BAR_ROLE，所以永远跟当前主题同一色系；
    alpha 只是让壁纸透一点点，不会把顶栏染成壁纸的颜色。
-   注意 libadwaita 会给 headerbar 自己刷一遍背景，不加 !important 盖不住。 */
 
+   注意：这里**不能用 !important** —— GTK 的 CSS 解析器不支持它，
+   会直接报 "Junk at end of value" 并整条规则失效（GTK3/GTK4 都一样）。
+   正确做法是覆盖 GTK 自己的命名颜色 + CSS 变量。 */
+
+/* GTK3 的 Adwaita 和 libadwaita 都认这几个命名颜色 */
+@define-color headerbar_bg_color rgba({{bar_rgb}}, {{bar_alpha}});
+@define-color headerbar_backdrop_color rgba({{bar_rgb}}, {{bar_alpha}});
+@define-color headerbar_fg_color #{{text}};
+@define-color headerbar_border_color rgba({{bar_rgb}}, {{bar_alpha}});
+
+/* libadwaita 1.6+ 走 CSS 变量 */
+:root {
+    --headerbar-bg-color: rgba({{bar_rgb}}, {{bar_alpha}});
+    --headerbar-backdrop-color: rgba({{bar_rgb}}, {{bar_alpha}});
+    --headerbar-border-color: rgba({{bar_rgb}}, {{bar_alpha}});
+}
+
+/* 再补一条普通规则（不加 !important），覆盖极少数直接写死背景的组件 */
 headerbar,
 .titlebar,
 headerbar.titlebar,
 window > headerbar,
 window.csd > .titlebar {
-    background-color: rgba({{bar_rgb}}, {{bar_alpha}}) !important;
-    background-image: none !important;
+    background-color: rgba({{bar_rgb}}, {{bar_alpha}});
+    background-image: none;
     box-shadow: none;
 }
 

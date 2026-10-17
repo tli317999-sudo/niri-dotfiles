@@ -9,6 +9,15 @@
 environment {
     QT_QPA_PLATFORMTHEME "kde"
     QT_QPA_PLATFORM "wayland"
+    // 光标主题：装了 Nordic-cursors 就用它，没有则被 niri 忽略
+    XCURSOR_THEME "Nordic-cursors"
+    XCURSOR_SIZE "28"
+}
+
+// 光标：打字时隐藏，静止 2 秒后隐藏（鼠标一动就回来）
+cursor {
+    hide-when-typing
+    hide-after-inactive-ms 2000
 }
 
 // Input device configuration.
@@ -112,6 +121,12 @@ input {
     // If the position is unset or results in an overlap, the output is instead placed
     // automatically.
     position x=1280 y=0
+}
+
+// 输出：开 VRR（可变刷新率），滚动和动画更顺。
+// 输出名用 `niri msg outputs` 查，笔记本内置屏通常是 eDP-1。
+output "eDP-1" {
+    variable-refresh-rate
 }
 
 // Settings that influence how windows are positioned and sized.
@@ -286,8 +301,9 @@ spawn-at-startup "waybar"
 // 装了 awww 就走带过渡动画的路径，没装则自动退回 swaybg 硬切。
 spawn-sh-at-startup "$HOME/.local/bin/wallpaper-start"
 
-// 通知守护：mako（配置见 ~/.config/mako/config）
-spawn-at-startup "mako"
+// 通知守护：装了 swaync 就用它（带通知中心），否则退回 mako。
+// 两者都实现 org.freedesktop.Notifications，同时起会打架，所以只启动一个。
+spawn-sh-at-startup "command -v swaync >/dev/null && exec swaync || exec mako"
 
 // polkit 认证代理：否则在 niri 下装软件/改系统设置不会弹密码框。
 // KDE 自带的那个只会在 Plasma 会话自启，这里手动拉起来。
@@ -297,6 +313,12 @@ spawn-at-startup "/usr/lib/polkit-kde-authentication-agent-1"
 // 在 Plasma 里由 plasma-core.target 拉起，niri 下必须自己叫醒，
 // 否则「电池」图标点开的电源管理页面会是空的。
 spawn-sh-at-startup "systemctl --user start plasma-powerdevil.service"
+
+// 通知中心（装了 swaync 才起；没有则继续用 mako）
+spawn-sh-at-startup "command -v swaync >/dev/null && swaync || true"
+
+// 音量/亮度 OSD 的后台（装了 swayosd 才起；按键走 bin/vol、bin/bright）
+spawn-sh-at-startup "command -v swayosd-server >/dev/null && swayosd-server || true"
 
 // 剪贴板历史：配 Mod+Alt+V 呼出 cliphist 用
 spawn-sh-at-startup "wl-paste --type text --watch cliphist store"
@@ -328,12 +350,37 @@ screenshot-path "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png"
 // Animation settings.
 // The wiki explains how to configure individual animations:
 // https://niri-wm.github.io/niri/Configuration:-Animations
+// 总览（Mod+O）：背景用主题最深色，工作区加投影，缩到 0.75
+overview {
+    zoom 0.75
+    backdrop-color "#{{crust}}"
+    workspace-shadow {
+        softness 40
+        spread 10
+        offset x=0 y=8
+        color "#{{crust}}aa"
+    }
+}
+
 animations {
     // Uncomment to turn off all animations.
     // off
 
     // Slow down all animations by this factor. Values below 1 speed them up instead.
     // slowdown 3.0
+    // 工作区切换用弹簧，比默认更跟手
+    workspace-switch {
+        spring damping-ratio=1.0 stiffness=800 epsilon=0.0001
+    }
+    // 窗口出现/消失：短促的缓出，太快会显硬、太慢会拖沓
+    window-open {
+        duration-ms 150
+        curve "ease-out-expo"
+    }
+    window-close {
+        duration-ms 150
+        curve "ease-out-quad"
+    }
 }
 
 // Window rules let you adjust behavior for individual windows.
@@ -371,6 +418,17 @@ window-rule {
     // block-out-from "screencast"
 }
 
+// 终端半透明：不用改 Konsole 自己的透明度设置，由 niri 统一处理
+window-rule {
+    match app-id=r#"^org\.kde\.konsole$"#
+    opacity 0.95
+}
+
+window-rule {
+    match app-id=r#"^com\.mitchellh\.ghostty$"#
+    opacity 0.92
+}
+
 // 全局圆角：12px 是 Catppuccin 生态里最常见的窗口圆角。
 // clip-to-geometry 让窗口内容被裁切到圆角内，配合阴影 + 细焦点环效果最好。
 window-rule {
@@ -395,17 +453,16 @@ binds {
 
     // Suggested binds for running programs: terminal, app launcher, screen locker.
     // 终端改成你系统里已有的 konsole（默认配置写的是 alacritty，你没装）
-    Mod+T hotkey-overlay-title="Open a Terminal: konsole" { spawn "konsole"; }
+    Mod+T hotkey-overlay-title="Open a Terminal" { spawn-sh "exec $HOME/.local/bin/term"; }
     Mod+D hotkey-overlay-title="Run an Application: fuzzel" { spawn "fuzzel"; }
     Mod+S hotkey-overlay-title="Open System Settings: systemsettings" { spawn "systemsettings"; }
     Mod+B hotkey-overlay-title="Change Wallpaper: fuzzel" { spawn-sh "$HOME/.local/bin/wallpaper"; }
     Mod+Shift+B hotkey-overlay-title="Random Wallpaper" { spawn-sh "$HOME/.local/bin/wallpaper --random"; }
-    Super+Alt+L hotkey-overlay-title="Lock the Screen: swaylock" { spawn "swaylock" "-f" "-c" "{{crust}}"; }
+    Super+Alt+L hotkey-overlay-title="Lock the Screen" { spawn-sh "exec $HOME/.local/bin/lock"; }
+    Mod+Alt+N hotkey-overlay-title="Notification Center: swaync" { spawn-sh "command -v swaync-client >/dev/null && swaync-client -t -sw || notify-send \"通知中心\" \"swaync 未安装\""; }
 
     // 区域截图：slurp 框选 → grim 截图 → 存盘 + 直接进剪贴板
-    Mod+Shift+S hotkey-overlay-title="Screenshot Region: grim + slurp" {
-        spawn-sh "mkdir -p ~/Pictures/Screenshots && grim -g \"$(slurp)\" - | tee ~/Pictures/Screenshots/$(date +%Y-%m-%d_%H-%M-%S).png | wl-copy";
-    }
+    Mod+Shift+S hotkey-overlay-title="Screenshot Region (annotate)" { spawn-sh "exec $HOME/.local/bin/shot"; }
 
     // 剪贴板历史：cliphist 取出列表 → fuzzel 选 → 写回剪贴板
     // 不用 Mod+V —— 它被下面的 toggle-window-floating 占了。
@@ -422,9 +479,10 @@ binds {
     // The allow-when-locked=true property makes them work even when the session is locked.
     // Using spawn-sh allows to pass multiple arguments together with the command.
     // "-l 1.0" limits the volume to 100%.
-    XF86AudioRaiseVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.1+ -l 1.0"; }
-    XF86AudioLowerVolume allow-when-locked=true { spawn-sh "wpctl set-volume @DEFAULT_AUDIO_SINK@ 0.1-"; }
-    XF86AudioMute        allow-when-locked=true { spawn-sh "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle"; }
+    // 音量/亮度：有 swayosd-client 就弹 OSD，没有就静默调
+    XF86AudioRaiseVolume allow-when-locked=true { spawn-sh "exec $HOME/.local/bin/vol raise"; }
+    XF86AudioLowerVolume allow-when-locked=true { spawn-sh "exec $HOME/.local/bin/vol lower"; }
+    XF86AudioMute        allow-when-locked=true { spawn-sh "exec $HOME/.local/bin/vol mute"; }
     XF86AudioMicMute     allow-when-locked=true { spawn-sh "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"; }
 
     // Example media keys mapping using playerctl.
@@ -437,8 +495,8 @@ binds {
     // Example brightness key mappings for brightnessctl.
     // You can use regular spawn with multiple arguments too (to avoid going through "sh"),
     // but you need to manually put each argument in separate "" quotes.
-    XF86MonBrightnessUp allow-when-locked=true { spawn "brightnessctl" "--class=backlight" "set" "+10%"; }
-    XF86MonBrightnessDown allow-when-locked=true { spawn "brightnessctl" "--class=backlight" "set" "10%-"; }
+    XF86MonBrightnessUp allow-when-locked=true { spawn-sh "exec $HOME/.local/bin/bright raise"; }
+    XF86MonBrightnessDown allow-when-locked=true { spawn-sh "exec $HOME/.local/bin/bright lower"; }
 
     // Open/close the Overview: a zoomed-out view of workspaces and windows.
     // You can also move the mouse into the top-left hot corner,

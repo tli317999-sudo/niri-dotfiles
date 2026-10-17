@@ -1,0 +1,42 @@
+/* 由 theme 脚本自动渲染，改主色请改 templates/swayosd-style.css */
+
+window#osd {
+    border-radius: 999px;
+    border: 1px solid #{{surface1}};
+    background: alpha(#{{mantle}}, 0.96);
+    padding: 2px;
+}
+
+window#osd #container {
+    margin: 8px 14px;
+}
+
+window#osd image,
+window#osd label {
+    color: #{{text}};
+}
+
+window#osd progressbar:disabled,
+window#osd image:disabled {
+    opacity: 0.5;
+}
+
+window#osd progressbar,
+window#osd trough {
+    min-height: 6px;
+    border-radius: 999px;
+    background: transparent;
+    border: none;
+}
+
+window#osd progress {
+    min-height: 6px;
+    border-radius: 999px;
+    background: #{{blue}};
+    border: none;
+}
+
+window#osd trough highlight {
+    border-radius: 999px;
+    background: #{{blue}};
+}

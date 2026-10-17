@@ -47,6 +47,15 @@ install -m 644 "$REPO/fuzzel/fuzzel.ini"   "$HOME/.config/fuzzel/"
 install -m 644 "$REPO/mako/config"         "$HOME/.config/mako/"
 ok "已写入"
 
+# ── 3b. swaync / gtklock ──────────────────────
+say "安装 swaync / gtklock 配置"
+mkdir -p "$HOME/.config/swaync" "$HOME/.config/gtklock"
+backup "$HOME/.config/swaync/config.json"
+backup "$HOME/.config/gtklock/config.ini"
+install -m 644 "$REPO/swaync/config.json" "$HOME/.config/swaync/"
+install -m 644 "$REPO/gtklock/config.ini" "$HOME/.config/gtklock/"
+ok "通知中心与锁屏配置就位（配色在下一步由 theme 渲染）"
+
 # ── 4. Konsole / KDE ──────────────────────────
 say "安装 Konsole 配色与 KDE 配色方案"
 mkdir -p "$HOME/.local/share/konsole" "$HOME/.local/share/color-schemes"

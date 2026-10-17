@@ -119,6 +119,18 @@ for d in "$HOME/.config/gtk-3.0" "$HOME/.config/gtk-4.0"; do
         "${kv[@]}" "bar_rgb=$BAR_RGB" "bar_alpha=$BAR_ALPHA"
 done
 
+# Ghostty 终端配色（没装 ghostty 也照样生成，装了直接用）
+mkdir -p "$HOME/.config/ghostty"
+"$RENDER" "$TPL_DIR/ghostty-config" "$HOME/.config/ghostty/config" "${kv[@]}" 2>/dev/null || true
+
+# swaync 通知中心的配色（没装 swaync 时这个文件无害）
+mkdir -p "$HOME/.config/swaync"
+"$RENDER" "$TPL_DIR/swaync-style.css" "$HOME/.config/swaync/style.css" "${kv[@]}" 2>/dev/null || true
+
+# swayosd 音量/亮度 OSD 的配色
+mkdir -p "$HOME/.config/swayosd"
+"$RENDER" "$TPL_DIR/swayosd-style.css" "$HOME/.config/swayosd/style.css" "${kv[@]}" 2>/dev/null || true
+
 # Qt/KDE 应用的工具栏、标签栏、菜单栏透明度（Darkly 控件风格）
 # 不写就默认 85%，保证每个主题都有同样的"顶栏比主体深一档"的层次
 DARKLY_OP=${DARKLY_BAR_OPACITY:-80}
@@ -264,6 +276,8 @@ else
 fi
 pkill -SIGUSR2 -x waybar 2>/dev/null && echo "  ✓ waybar 已重载"
 command -v makoctl >/dev/null && makoctl reload >/dev/null 2>&1 && echo "  ✓ mako 已重载"
+# swaync：重载 CSS（它在跑的时候才有效）
+command -v swaync-client >/dev/null && swaync-client -rs >/dev/null 2>&1 && echo "  ✓ swaync 配色已重载"
 
 printf '%s\n' "$SLUG" > "$STATE"
 echo "✔ 现在是 $NAME"

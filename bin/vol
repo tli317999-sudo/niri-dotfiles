@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# vol — 音量键统一入口，带 OSD
+#   vol raise|lower|mute
+set -uo pipefail
+
+action=${1:-raise}
+
+if command -v swayosd-client >/dev/null 2>&1; then
+    case "$action" in
+        raise) exec swayosd-client --output-volume raise ;;
+        lower) exec swayosd-client --output-volume lower ;;
+        mute)  exec swayosd-client --output-volume mute-toggle ;;
+    esac
+fi
+
+# 没有 swayosd 就静默调（mako 不弹提示）
+case "$action" in
+    raise) wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+ -l 1.0 ;;
+    lower) wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%- ;;
+    mute)  wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle ;;
+esac

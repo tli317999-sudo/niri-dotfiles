@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# lock — 锁屏：优先 gtklock（跟 GTK 主题一致，带时钟/通知），没装就退回 swaylock
+set -uo pipefail
+
+if command -v gtklock >/dev/null 2>&1; then
+    # gtklock 的配置文件不会展开变量，启动前把当前壁纸写进去
+    WP=$(cat "$HOME/.config/niri/wallpaper" 2>/dev/null)
+    CONF="$HOME/.config/gtklock/config.ini"
+    if [[ -f $WP && -f $CONF ]]; then
+        sed -i "s|^background-image=.*|background-image=$WP|" "$CONF"
+    fi
+    exec gtklock
+fi
+
+# swaylock 兜底：颜色取当前主题的 crust
+CRUST=$(awk -F= '/^crust=/{print $2}' \
+    "$HOME/.config/themes/palettes/$(cat "$HOME/.config/themes/current" 2>/dev/null || echo tokyonight).conf" \
+    2>/dev/null)
+exec swaylock -f -c "#${CRUST:-13131a}"

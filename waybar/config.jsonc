@@ -33,9 +33,9 @@
             "weeks-pos": "right",
             "on-scroll": 1,
             "format": {
-                "months": "<span color='#bdc2ff'><b>{}</b></span>",
-                "days": "<span color='#e4e1e9'>{}</span>",
-                "weekdays": "<span color='#e7b9d6'><b>{}</b></span>",
+                "months": "<span color='#ffb2b9'><b>{}</b></span>",
+                "days": "<span color='#f0dedf'>{}</span>",
+                "weekdays": "<span color='#e8c08e'><b>{}</b></span>",
                 "today": "<span color='#dacd8b'><b>{}</b></span>"
             }
         },

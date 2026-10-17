@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# shot — 区域截图 → 标注 → 保存 + 进剪贴板
+#   shot          区域截图
+#   shot --full   整屏
+# 整屏/单窗口也可以用 niri 自带的 Print / Alt+Print
+set -uo pipefail
+
+DIR="$HOME/Pictures/Screenshots"
+mkdir -p "$DIR"
+OUT="$DIR/$(date +%Y-%m-%d_%H-%M-%S).png"
+TMP=$(mktemp --suffix=.png)
+trap 'rm -f "$TMP"' EXIT
+
+if [[ ${1:-} == --full ]]; then
+    grim "$TMP" || exit 1
+else
+    geom=$(slurp) || exit 0          # 按 Esc 取消
+    grim -g "$geom" "$TMP" || exit 1
+fi
+
+# 有标注工具就交给它（保存和复制由它负责；用户取消则不落盘）
+if command -v satty >/dev/null 2>&1; then
+    # satty 0.22 没有 --copy-to-clipboard（旧写法会让它报错退出，表现为"框完就没了"）。
+    # --floating-hack 让窗口浮动，否则 niri 会把它当平铺窗口塞到旁边去。
+    exec satty --filename "$TMP" --output-filename "$OUT" \
+        --floating-hack --copy-command wl-copy --save-after-copy
+elif command -v swappy >/dev/null 2>&1; then
+    exec swappy -f "$TMP" -o "$OUT"
+fi
+
+# 兜底：直接保存 + 复制
+cp "$TMP" "$OUT"
+wl-copy < "$OUT" 2>/dev/null || true
+notify-send -a "截图" -i "$OUT" "已保存" "$(basename "$OUT")"

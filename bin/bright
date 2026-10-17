@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# bright — 亮度键统一入口，带 OSD
+#   bright raise|lower
+set -uo pipefail
+
+action=${1:-raise}
+
+if command -v swayosd-client >/dev/null 2>&1; then
+    case "$action" in
+        raise) exec swayosd-client --brightness raise ;;
+        lower) exec swayosd-client --brightness lower ;;
+    esac
+fi
+
+case "$action" in
+    raise) brightnessctl --class=backlight set +5% ;;
+    lower) brightnessctl --class=backlight set 5%- ;;
+esac
