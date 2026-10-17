@@ -320,7 +320,11 @@ spawn-at-startup "/usr/lib/polkit-kde-authentication-agent-1"
 spawn-sh-at-startup "systemctl --user start plasma-powerdevil.service"
 
 
-// 音量/亮度 OSD：Clavis 自带（按键仍走 bin/vol、bin/bright，它们会优先用 swayosd，没有就静默调）
+// OSD 分两套：
+//   音量 → 走 wpctl，Clavis 自己会监听并弹 OSD
+//   亮度 → Clavis 只监听自己发出的改动，外部改 sysfs 它不知道，
+//          所以单独起 swayosd-server，由 bin/bright 用它弹 OSD
+spawn-sh-at-startup "command -v swayosd-server >/dev/null && swayosd-server || true"
 
 // 剪贴板历史：配 Mod+Alt+V 呼出 cliphist 用
 // 剪贴板历史：由 clavis-clipboard.service（key clipboard watch）负责

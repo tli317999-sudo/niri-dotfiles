@@ -5,14 +5,8 @@ set -uo pipefail
 
 action=${1:-raise}
 
-if command -v swayosd-client >/dev/null 2>&1; then
-    case "$action" in
-        raise) exec swayosd-client --output-volume raise ;;
-        lower) exec swayosd-client --output-volume lower ;;
-        mute)  exec swayosd-client --output-volume mute-toggle ;;
-    esac
-fi
-
+# 音量一律走 wpctl：Clavis 的 shell 会监听音量变化并自己弹 OSD。
+# 如果这里用 swayosd-client，就会出现两套 OSD 同时弹。
 # 没有 swayosd 就静默调（mako 不弹提示）
 case "$action" in
     raise) wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+ -l 1.0 ;;

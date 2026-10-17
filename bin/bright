@@ -5,10 +5,11 @@ set -uo pipefail
 
 action=${1:-raise}
 
-if command -v swayosd-client >/dev/null 2>&1; then
+# 同上：必须确认 swayosd-server 在跑，否则客户端连不上、亮度完全不动
+if command -v swayosd-client >/dev/null 2>&1 && pgrep -x swayosd-server >/dev/null 2>&1; then
     case "$action" in
-        raise) exec swayosd-client --brightness raise ;;
-        lower) exec swayosd-client --brightness lower ;;
+        raise) swayosd-client --brightness raise >/dev/null 2>&1 && exit 0 ;;
+        lower) swayosd-client --brightness lower >/dev/null 2>&1 && exit 0 ;;
     esac
 fi
 

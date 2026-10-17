@@ -192,13 +192,13 @@ layout {
 
         // Color of the ring on the active monitor.
         // Catppuccin Mocha blue
-        active-color "#f6b2df"
+        active-color "#acd28e"
 
         // Color of the ring on inactive monitors.
         //
         // The focus ring only draws around the active window, so the only place
         // where you can see its inactive-color is on other monitors.
-        inactive-color "#401d34"
+        inactive-color "#283a1a"
 
         // You can also use gradients. They take precedence over solid colors.
         // Gradients are rendered the same as CSS linear-gradient(angle, from, to).
@@ -273,7 +273,7 @@ layout {
 
         // You can also change the shadow color and opacity.
         // Catppuccin Mocha crust + 60% 不透明度
-        color "#120c1099"
+        color "#0c0f0999"
     }
 
     // Struts shrink the area occupied by windows, similarly to layer-shell panels.
@@ -320,7 +320,11 @@ spawn-at-startup "/usr/lib/polkit-kde-authentication-agent-1"
 spawn-sh-at-startup "systemctl --user start plasma-powerdevil.service"
 
 
-// 音量/亮度 OSD：Clavis 自带（按键仍走 bin/vol、bin/bright，它们会优先用 swayosd，没有就静默调）
+// OSD 分两套：
+//   音量 → 走 wpctl，Clavis 自己会监听并弹 OSD
+//   亮度 → Clavis 只监听自己发出的改动，外部改 sysfs 它不知道，
+//          所以单独起 swayosd-server，由 bin/bright 用它弹 OSD
+spawn-sh-at-startup "command -v swayosd-server >/dev/null && swayosd-server || true"
 
 // 剪贴板历史：配 Mod+Alt+V 呼出 cliphist 用
 // 剪贴板历史：由 clavis-clipboard.service（key clipboard watch）负责
@@ -356,12 +360,12 @@ screenshot-path "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png"
 // 总览（Mod+O）：背景用主题最深色，工作区加投影，缩到 0.75
 overview {
     zoom 0.75
-    backdrop-color "#120c10"
+    backdrop-color "#0c0f09"
     workspace-shadow {
         softness 40
         spread 10
         offset x=0 y=8
-        color "#120c10aa"
+        color "#0c0f09aa"
     }
 }
 
