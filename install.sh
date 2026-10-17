@@ -102,6 +102,19 @@ if [[ -d $REPO/systemd ]]; then
     ok "单元已安装（用 systemctl --user enable --now 启用）"
 fi
 
+# ── 5c. autostart（Plasma 等非 niri 会话用）─────
+if [[ -d $REPO/autostart ]]; then
+    say "安装 autostart 项"
+    mkdir -p "$HOME/.config/autostart"
+    for f in "$REPO"/autostart/*.desktop; do
+        [[ -e $f ]] || continue
+        backup "$HOME/.config/autostart/$(basename "$f")"
+        # 仓库里的 Exec 写死绝对路径，装到别人机器上要换成实际路径
+        sed "s#/home/teo#$HOME#g" "$f" > "$HOME/.config/autostart/$(basename "$f")"
+    done
+    ok "autostart 已安装"
+fi
+
 # ── 6. 自检 ───────────────────────────────────
 say "自检"
 command -v niri >/dev/null && niri validate -c "$HOME/.config/niri/config.kdl" >/dev/null 2>&1 \

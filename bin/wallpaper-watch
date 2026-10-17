@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# wallpaper-watch — 监听壁纸变化，自动重新取色
+#
+# 同时盯两个来源：
+#   1) KDE Plasma 的桌面壁纸（appletsrc 里的 Image 键）
+#   2) Clavis 的壁纸（config.json 的 wallpaper.path）
+# 任一变了就用那张图重新跑 matugen → 主题跟色。
+#
+# 之前只盯 Clavis（clavis-recolor），所以在 Plasma 会话里换壁纸颜色不跟着变。
+# 现在两个都盯，用哪张取决于哪个先变。
+set -uo pipefail
+
+APPLETSRC="${XDG_CONFIG_HOME:-$HOME/.config}/plasma-org.kde.plasma.desktop-appletsrc"
+CLAVIS_CFG="${XDG_CONFIG_HOME:-$HOME/.config}/clavis/config.json"
+STATE="${XDG_CACHE_HOME:-$HOME/.cache}/wallpaper-watch.state"
+INTERVAL=${WALLPAPER_WATCH_INTERVAL:-2}
+
+mkdir -p "$(dirname "$STATE")"
+
+read_plasma() {
+    python3 - "$APPLETSRC" <<'PY' 2>/dev/null
+import re, sys, urllib.parse
+try:
+    text = open(sys.argv[1], encoding='utf-8').read()
+except OSError:
+    raise SystemExit
+m = re.search(r'^Image=(file://\S+)$', text, re.M)
+if not m:
+    raise SystemExit
+print(urllib.parse.unquote(m.group(1)[len('file://'):]))
+PY
+}
+
+read_clavis() {
+    python3 - "$CLAVIS_CFG" <<'PY' 2>/dev/null
+import json, sys
+try:
+    d = json.load(open(sys.argv[1], encoding='utf-8'))
+except Exception:
+    raise SystemExit
+w = d.get('wallpaper') or {}
+print(w.get('pathDark') or w.get('path') or '')
+PY
+}
+
+# 状态文件两行：第一行 = 上次的 Plasma 壁纸，第二行 = 上次的 Clavis 壁纸
+last_plasma=$(sed -n '1p' "$STATE" 2>/dev/null)
+last_clavis=$(sed -n '2p' "$STATE" 2>/dev/null)
+
+recolor() {
+    # 只有这个 watcher（Plasma 会话）用 scheme-content，取色更贴近壁纸本身；
+    # niri 那边的 clavis-recolor 不传 WALL_SCHEME，继续用 matugen 默认的 tonal-spot。
+    WALL_SCHEME="${WALL_SCHEME:-scheme-content}" \
+        "$HOME/.local/bin/wallpaper" --recolor "$1" >/dev/null 2>&1
+}
+
+while sleep "$INTERVAL"; do
+    p=$(read_plasma)
+    c=$(read_clavis)
+    changed=""
+
+    [[ -n $p && -f $p && $p != "$last_plasma" ]] && { last_plasma=$p; changed=$p; }
+    [[ -n $c && -f $c && $c != "$last_clavis" ]] && { last_clavis=$c; changed=$c; }
+
+    printf '%s\n%s\n' "$last_plasma" "$last_clavis" > "$STATE"
+
+    [[ -n $changed ]] && recolor "$changed"
+done

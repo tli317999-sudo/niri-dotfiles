@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# power-auto — 按供电状态自动调电源档位和亮度上限
+#
+#   电池供电 → power-saver；亮度上限 60%（超过就压下来，记住原值）
+#   插上电源 → balanced；亮度恢复到压之前的水平
+#
+# 只在「状态发生变化」时动手，不会反复覆盖你手动调的亮度。
+# 用 systemd 用户服务运行，Plasma / niri 两个会话都生效。
+set -uo pipefail
+
+INTERVAL=${POWER_AUTO_INTERVAL:-60}
+CAP=${POWER_AUTO_CAP:-60}                       # 电池时亮度上限（百分比）
+STATE="${XDG_CACHE_HOME:-$HOME/.cache}/power-auto.state"
+
+on_battery() {
+    local ps
+    for ps in /sys/class/power_supply/A*/online; do
+        [[ -r $ps ]] || continue
+        [[ $(cat "$ps" 2>/dev/null) == 1 ]] && return 1   # 有适配器在线
+    done
+    return 0
+}
+
+# 当前亮度百分比
+bright_pct() {
+    local cur max
+    cur=$(brightnessctl -c backlight g 2>/dev/null) || return 1
+    max=$(brightnessctl -c backlight m 2>/dev/null) || return 1
+    [[ -z $max || $max -eq 0 ]] && return 1
+    echo $(( cur * 100 / max ))
+}
+
+set_bright_pct() {
+    brightnessctl -c backlight set "$1%" >/dev/null 2>&1
+}
+
+apply_battery() {
+    powerprofilesctl set power-saver 2>/dev/null || true
+    local pct
+    pct=$(bright_pct) || return
+    # 只在超过上限时才压，并记住原值用于恢复
+    if (( pct > CAP )); then
+        printf '%s\n' "$pct" > "$STATE"
+        set_bright_pct "$CAP"
+    fi
+}
+
+apply_ac() {
+    powerprofilesctl set balanced 2>/dev/null || true
+    if [[ -f $STATE ]]; then
+        local saved
+        saved=$(cat "$STATE" 2>/dev/null)
+        [[ -n $saved ]] && set_bright_pct "$saved"
+        rm -f "$STATE"
+    fi
+}
+
+last=""
+while :; do
+    if on_battery; then
+        want=battery
+    else
+        want=ac
+    fi
+
+    if [[ $want == battery ]]; then
+        # 进入电池：记住原亮度（仅当超出上限）
+        if [[ $last != battery ]]; then
+            pct=$(bright_pct) || pct=''
+            [[ -n $pct ]] && (( pct > CAP )) && printf '%s\n' "$pct" > "$STATE"
+            powerprofilesctl set power-saver 2>/dev/null || true
+            last=battery
+        fi
+        # 只在「刚进入电池」时压一次：持续压会和 PowerDevil / Clavis 的
+        # 自动变暗互相打架（它们会把亮度继续往下调，我们再抬回来很怪）。
+    else
+        if [[ $last != ac ]]; then
+            apply_ac
+            last=ac
+        fi
+    fi
+    sleep "$INTERVAL"
+done

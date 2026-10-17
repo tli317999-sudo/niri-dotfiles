@@ -1,0 +1,14 @@
+[Unit]
+Description=按供电状态自动切换电源档位（电池省电 / 插电平衡）
+Documentation=file:%h/.local/bin/power-auto
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/power-auto
+Restart=on-failure
+RestartSec=5
+# 定期唤醒检查一下就够，不需要高优先级
+Nice=10
+
+[Install]
+WantedBy=default.target

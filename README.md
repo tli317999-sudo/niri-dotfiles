@@ -180,6 +180,50 @@ cat ~/.cache/clavis-recolor.last            # 它最后处理的那张壁纸
 副作用：`wallpaper` 的 `--apply` / fuzzel 选图不再使用（`Mod+B` 已解绑），
 壁纸切换统一走 Clavis（`Mod+Alt+W`）。
 
+## 省电
+
+niri + Clavis 比 KDE 费电，主要来自「屏幕亮着的时间」和「常驻动画」。已经做掉的：
+
+| 项 | 设置 | 实现位置 |
+|---|---|---|
+| 刷新率 | 48Hz（默认 60Hz） | `niri-config.kdl` 的 `output "eDP-1"` |
+| 自动变暗 | 2 分钟 → 35% | Clavis `idle-policy.json` |
+| 熄屏 | 5 分钟 | 同上 |
+| 电源档位 | 电池 → `power-saver`，插电 → `balanced` | `bin/power-auto` + `systemd/power-auto.service` |
+| 亮度上限 | 电池时 60% | 同上 |
+| 音频频谱动画 | 关 | Clavis `config.json` 的 `keystone.longShowSpectrum` |
+
+`power-auto` 只在**电源状态切换那一刻**动手：持续压亮度会和 PowerDevil / Clavis 的
+自动变暗互相打架（实测会出现「每分钟亮一下」）。
+
+量功耗用 `bin/power-log`：
+
+```bash
+power-log        # 采 5 分钟
+power-log 10 5   # 10 分钟，每 5 秒一次
+```
+
+对比两个会话时保证：**亮度一样、都不开窗口、各等 1 分钟让负载稳定**。
+
+### 壁纸配色跟随（两个会话都覆盖）
+
+niri 里壁纸由 Clavis 管，Plasma 里由 Plasma 管，所以有两条链路：
+
+| 会话 | 触发者 | 取色风格 |
+|---|---|---|
+| niri | `bin/clavis-recolor`（systemd，随 niri 启停） | matugen 默认 `scheme-tonal-spot` |
+| Plasma | `bin/wallpaper-watch`（autostart 常驻） | `scheme-content`（更贴近壁纸原色） |
+
+风格差异是故意的：niri 保持原样，Plasma 用更忠于壁纸的取样。想统一就改
+`bin/clavis-recolor` 里的调用，加 `WALL_SCHEME=scheme-content`。
+
+挑风格用 `bin/matugen-preview`，一次列出 10 种风格的色块：
+
+```bash
+matugen-preview                      # 当前壁纸
+matugen-preview ~/Pictures/x.jpg -m light --contrast 0.3
+```
+
 ## 快捷键
 
 `Mod` = Super（Windows 键）。

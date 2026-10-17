@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=Wallpaper Color Watch
+Comment=壁纸变化时自动重新取色
+Exec=/home/teo/.local/bin/wallpaper-watch
+X-GNOME-Autostart-enabled=true
+NoDisplay=true

@@ -64,7 +64,13 @@ follow_wallpaper_colors() {
     # 遇到偏灰的壁纸导致顶栏文字发闷时调这个
     local contrast_arg=()
     [[ -n ${WALL_CONTRAST:-} ]] && contrast_arg=(--contrast "$WALL_CONTRAST")
-    if ! matugen image "$path" -m dark -j hex --prefer saturation --dry-run \
+    # 取色风格由调用方决定：不传 WALL_SCHEME 时用 matugen 默认的
+    # scheme-tonal-spot（niri 那套流程保持原样），Plasma 的 wallpaper-watch
+    # 会显式传 WALL_SCHEME=scheme-content。
+    local scheme_arg=()
+    [[ -n ${WALL_SCHEME:-} ]] && scheme_arg=(-t "$WALL_SCHEME")
+    if ! matugen image "$path" -m dark -j hex --prefer saturation \
+            "${scheme_arg[@]}" --dry-run \
             "${contrast_arg[@]}" > "$tmpjson" 2>/dev/null; then
         rm -f "$tmpjson"
         echo "matugen 取色失败，配色保持不变" >&2

@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# power-log — 采样电池功耗，算平均值，用于会话之间对比
+#
+#   power-log              # 采 5 分钟
+#   power-log 10           # 采 10 分钟
+#   power-log 5 5          # 采 5 分钟，每 5 秒一次
+#
+# 建议对比方法：同一亮度、同一负载（都只是看着桌面），分别在一个会话里跑一次。
+set -uo pipefail
+
+MINUTES=${1:-5}
+INTERVAL=${2:-10}
+BAT=$(ls -d /sys/class/power_supply/BAT* 2>/dev/null | while read -r b; do
+          [[ $(cat "$b/status" 2>/dev/null) == Discharging ]] && { echo "$b"; break; }
+      done)
+[[ -z $BAT ]] && BAT=$(ls -d /sys/class/power_supply/BAT* 2>/dev/null | head -1)
+[[ -z $BAT || ! -r $BAT/power_now ]] && { echo "读不到电池功率" >&2; exit 1; }
+
+SESS=${XDG_CURRENT_DESKTOP:-?}
+echo "会话: $SESS   电池: $(basename "$BAT")   采样: ${MINUTES} 分钟 / 每 ${INTERVAL}s"
+echo "电源档位: $(powerprofilesctl get 2>/dev/null)   亮度: $(brightnessctl -c backlight g 2>/dev/null || echo '?')"
+echo
+
+n=$(( MINUTES * 60 / INTERVAL ))
+sum=0; cnt=0; min=99999; max=0
+for _ in $(seq "$n"); do
+    w=$(cat "$BAT/power_now" 2>/dev/null) || break
+    w=$(( w / 1000 ))          # mW -> W*1000
+    sum=$(( sum + w )); cnt=$(( cnt + 1 ))
+    (( w < min )) && min=$w
+    (( w > max )) && max=$w
+    printf '\r采样 %d/%d  当前 %d.%02d W' "$cnt" "$n" $(( w / 1000 )) $(( w % 1000 / 10 ))
+    sleep "$INTERVAL"
+done
+echo
+(( cnt == 0 )) && { echo "没采到数据" >&2; exit 1; }
+
+avg=$(( sum / cnt ))          # 单位 mW
+printf '\n平均 %d.%02d W   最低 %d.%02d W   最高 %d.%02d W   （%d 个样本）\n' \
+    $(( avg / 1000 )) $(( avg % 1000 / 10 )) \
+    $(( min / 1000 )) $(( min % 1000 / 10 )) \
+    $(( max / 1000 )) $(( max % 1000 / 10 )) $cnt
