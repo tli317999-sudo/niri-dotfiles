@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# clavis — 手动运行/调试 Clavis 的入口
+# 存在的理由：上游把构建目录的绝对路径写进了插件 RUNPATH（见 readelf -d），
+# 所以手动执行 `key shell` 会加载失败。systemd 服务那边用 drop-in 兜住了，
+# 这里给手动调用补上同样的库搜索路径——只影响这一个进程，不污染全局环境。
+#   clavis shell        启动 shell（等价 key shell）
+#   clavis ipc show     列出 IPC 目标
+set -uo pipefail
+
+LIBPATH=$(ls -d /usr/lib/qt6/qml/Clavis/*/ 2>/dev/null | tr '\n' ':' | sed 's/:$//')
+[[ -n $LIBPATH ]] && export LD_LIBRARY_PATH="$LIBPATH${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+exec key "$@"

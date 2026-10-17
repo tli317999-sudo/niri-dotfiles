@@ -192,13 +192,13 @@ layout {
 
         // Color of the ring on the active monitor.
         // Catppuccin Mocha blue
-        active-color "#ffb2b9"
+        active-color "#bdc2ff"
 
         // Color of the ring on inactive monitors.
         //
         // The focus ring only draws around the active window, so the only place
         // where you can see its inactive-color is on other monitors.
-        inactive-color "#411d20"
+        inactive-color "#1d2041"
 
         // You can also use gradients. They take precedence over solid colors.
         // Gradients are rendered the same as CSS linear-gradient(angle, from, to).
@@ -273,7 +273,7 @@ layout {
 
         // You can also change the shadow color and opacity.
         // Catppuccin Mocha crust + 60% 不透明度
-        color "#140c0d99"
+        color "#0d0e1399"
     }
 
     // Struts shrink the area occupied by windows, similarly to layer-shell panels.
@@ -295,7 +295,9 @@ layout {
 // See the binds section below for more spawn examples.
 
 // 状态栏：waybar（配置见 ~/.config/waybar/）
-spawn-at-startup "waybar"
+// 状态栏：由 Clavis shell 提供（clavis-shell.service，随 niri.service 启动）。
+// 想换回 waybar 就取消下一行注释，并停掉 clavis-shell。
+// spawn-at-startup "waybar"
 
 // 壁纸：由 wallpaper-start 还原上次选的那张。
 // 装了 awww 就走带过渡动画的路径，没装则自动退回 swaybg 硬切。
@@ -303,7 +305,7 @@ spawn-sh-at-startup "$HOME/.local/bin/wallpaper-start"
 
 // 通知守护：装了 swaync 就用它（带通知中心），否则退回 mako。
 // 两者都实现 org.freedesktop.Notifications，同时起会打架，所以只启动一个。
-spawn-sh-at-startup "command -v swaync >/dev/null && exec swaync || exec mako"
+// 通知：Clavis 内置通知中心，不再单独起 mako/swaync
 
 // polkit 认证代理：否则在 niri 下装软件/改系统设置不会弹密码框。
 // KDE 自带的那个只会在 Plasma 会话自启，这里手动拉起来。
@@ -314,14 +316,12 @@ spawn-at-startup "/usr/lib/polkit-kde-authentication-agent-1"
 // 否则「电池」图标点开的电源管理页面会是空的。
 spawn-sh-at-startup "systemctl --user start plasma-powerdevil.service"
 
-// 通知中心（装了 swaync 才起；没有则继续用 mako）
-spawn-sh-at-startup "command -v swaync >/dev/null && swaync || true"
 
-// 音量/亮度 OSD 的后台（装了 swayosd 才起；按键走 bin/vol、bin/bright）
-spawn-sh-at-startup "command -v swayosd-server >/dev/null && swayosd-server || true"
+// 音量/亮度 OSD：Clavis 自带（按键仍走 bin/vol、bin/bright，它们会优先用 swayosd，没有就静默调）
 
 // 剪贴板历史：配 Mod+Alt+V 呼出 cliphist 用
-spawn-sh-at-startup "wl-paste --type text --watch cliphist store"
+// 剪贴板历史：由 clavis-clipboard.service（key clipboard watch）负责
+// spawn-sh-at-startup "wl-paste --type text --watch cliphist store"
 
 // To run a shell command (with variables, pipes, etc.), use spawn-sh-at-startup:
 // spawn-sh-at-startup "qs -c ~/source/qs/MyAwesomeShell"
@@ -353,12 +353,12 @@ screenshot-path "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png"
 // 总览（Mod+O）：背景用主题最深色，工作区加投影，缩到 0.75
 overview {
     zoom 0.75
-    backdrop-color "#140c0d"
+    backdrop-color "#0d0e13"
     workspace-shadow {
         softness 40
         spread 10
         offset x=0 y=8
-        color "#140c0daa"
+        color "#0d0e13aa"
     }
 }
 
@@ -735,3 +735,12 @@ binds {
     // moving the mouse or pressing any other key.
     Mod+Shift+P { power-off-monitors; }
 }
+
+// ── Clavis 托管片段 ────────────────────────────
+// Clavis 只会按需往这些文件里写东西（你在它设置里点「设置」时才创建）。
+// 这里先用空文件占位并 include，避免 niri 报错；
+// 也避免换主题时 theme 重新渲染 config.kdl 把 include 冲掉。
+include "clavis/binds.kdl"
+include "clavis/cursor.kdl"
+include "clavis/effects.kdl"
+include "clavis/layer-rules.kdl"

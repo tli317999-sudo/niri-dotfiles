@@ -295,7 +295,9 @@ layout {
 // See the binds section below for more spawn examples.
 
 // 状态栏：waybar（配置见 ~/.config/waybar/）
-spawn-at-startup "waybar"
+// 状态栏：由 Clavis shell 提供（clavis-shell.service，随 niri.service 启动）。
+// 想换回 waybar 就取消下一行注释，并停掉 clavis-shell。
+// spawn-at-startup "waybar"
 
 // 壁纸：由 wallpaper-start 还原上次选的那张。
 // 装了 awww 就走带过渡动画的路径，没装则自动退回 swaybg 硬切。
@@ -303,7 +305,7 @@ spawn-sh-at-startup "$HOME/.local/bin/wallpaper-start"
 
 // 通知守护：装了 swaync 就用它（带通知中心），否则退回 mako。
 // 两者都实现 org.freedesktop.Notifications，同时起会打架，所以只启动一个。
-spawn-sh-at-startup "command -v swaync >/dev/null && exec swaync || exec mako"
+// 通知：Clavis 内置通知中心，不再单独起 mako/swaync
 
 // polkit 认证代理：否则在 niri 下装软件/改系统设置不会弹密码框。
 // KDE 自带的那个只会在 Plasma 会话自启，这里手动拉起来。
@@ -314,14 +316,12 @@ spawn-at-startup "/usr/lib/polkit-kde-authentication-agent-1"
 // 否则「电池」图标点开的电源管理页面会是空的。
 spawn-sh-at-startup "systemctl --user start plasma-powerdevil.service"
 
-// 通知中心（装了 swaync 才起；没有则继续用 mako）
-spawn-sh-at-startup "command -v swaync >/dev/null && swaync || true"
 
-// 音量/亮度 OSD 的后台（装了 swayosd 才起；按键走 bin/vol、bin/bright）
-spawn-sh-at-startup "command -v swayosd-server >/dev/null && swayosd-server || true"
+// 音量/亮度 OSD：Clavis 自带（按键仍走 bin/vol、bin/bright，它们会优先用 swayosd，没有就静默调）
 
 // 剪贴板历史：配 Mod+Alt+V 呼出 cliphist 用
-spawn-sh-at-startup "wl-paste --type text --watch cliphist store"
+// 剪贴板历史：由 clavis-clipboard.service（key clipboard watch）负责
+// spawn-sh-at-startup "wl-paste --type text --watch cliphist store"
 
 // To run a shell command (with variables, pipes, etc.), use spawn-sh-at-startup:
 // spawn-sh-at-startup "qs -c ~/source/qs/MyAwesomeShell"
@@ -464,11 +464,11 @@ binds {
     // 区域截图：slurp 框选 → grim 截图 → 存盘 + 直接进剪贴板
     Mod+Shift+S hotkey-overlay-title="Screenshot Region (annotate)" { spawn-sh "exec $HOME/.local/bin/shot"; }
 
-    // 剪贴板历史：cliphist 取出列表 → fuzzel 选 → 写回剪贴板
-    // 不用 Mod+V —— 它被下面的 toggle-window-floating 占了。
-    Mod+Alt+V hotkey-overlay-title="Clipboard History: cliphist + fuzzel" {
-        spawn-sh "cliphist list | fuzzel --dmenu --prompt '  剪贴板  ' | cliphist decode | wl-copy";
-    }
+    // 剪贴板历史：交给 Clavis 的 spotlight（Mod+Alt+V，见 niri/clavis/binds.kdl）
+    // 想用回 fuzzel 版本就取消注释，并删掉 binds.kdl 里的 Mod+Alt+V
+    // Mod+Alt+V hotkey-overlay-title="Clipboard History: cliphist + fuzzel" {
+    //     spawn-sh "cliphist list | fuzzel --dmenu --prompt '  剪贴板  ' | cliphist decode | wl-copy";
+    // }
 
     // Use spawn-sh to run a shell command. Do this if you need pipes, multiple commands, etc.
     // Note: the entire command goes as a single argument. It's passed verbatim to `sh -c`.
@@ -735,3 +735,12 @@ binds {
     // moving the mouse or pressing any other key.
     Mod+Shift+P { power-off-monitors; }
 }
+
+// ── Clavis 托管片段 ────────────────────────────
+// Clavis 只会按需往这些文件里写东西（你在它设置里点「设置」时才创建）。
+// 这里先用空文件占位并 include，避免 niri 报错；
+// 也避免换主题时 theme 重新渲染 config.kdl 把 include 冲掉。
+include "clavis/binds.kdl"
+include "clavis/cursor.kdl"
+include "clavis/effects.kdl"
+include "clavis/layer-rules.kdl"

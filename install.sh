@@ -71,6 +71,15 @@ elif [[ -f $REPO/kde/darklyrc ]]; then
 fi
 
 # ── 5. 渲染真实配置 ───────────────────────────
+# Clavis 托管片段的占位文件：config.kdl 里 include 了它们，
+# 文件不存在 niri 会直接报错；Clavis 之后会按需往里写内容
+if [[ -d $REPO/niri/clavis ]]; then
+    say "安装 niri/clavis 片段占位"
+    mkdir -p "$HOME/.config/niri/clavis"
+    cp -n "$REPO"/niri/clavis/*.kdl "$HOME/.config/niri/clavis/" 2>/dev/null || true
+    ok "clavis 片段就位"
+fi
+
 say "渲染 niri / waybar / fuzzel / mako"
 mkdir -p "$HOME/.config/niri"
 backup "$HOME/.config/niri/config.kdl"

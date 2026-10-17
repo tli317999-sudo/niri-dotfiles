@@ -1,0 +1,15 @@
+// Clavis 快捷键（include 进来的是片段，所以必须包在 binds { } 里）
+
+binds {
+    Mod+Space repeat=false { spawn "qs" "-c" "clavis" "ipc" "call" "spotlight" "toggle"; }
+    Mod+Shift+Space repeat=false { spawn "qs" "-c" "clavis" "ipc" "call" "spotlight" "web"; }
+    Mod+Slash repeat=false { spawn "qs" "-c" "clavis" "ipc" "call" "shortcut-map" "toggle"; }
+    Mod+Alt+V repeat=false { spawn "qs" "-c" "clavis" "ipc" "call" "spotlight" "openMode" "clipboard"; }
+    Mod+Alt+W repeat=false { spawn "qs" "-c" "clavis" "ipc" "call" "spotlight" "openMode" "wallpapers"; }
+    Mod+N repeat=false { spawn "qs" "-c" "clavis" "ipc" "call" "sidebar" "toggle" "dashboard"; }
+    Mod+A repeat=false { spawn "qs" "-c" "clavis" "ipc" "call" "sidebar" "toggle" "quicksettings"; }
+    Mod+Ctrl+Comma repeat=false { spawn "qs" "-c" "clavis" "ipc" "call" "control-center" "toggle" "general"; }
+    Mod+Shift+W repeat=false { spawn "qs" "-c" "clavis" "ipc" "call" "keystone" "hub"; }
+    Mod+Shift+T repeat=false { spawn "qs" "-c" "clavis" "ipc" "call" "keystone" "tools"; }
+    Alt+Shift+L repeat=false { spawn "qs" "-c" "clavis" "ipc" "call" "lock" "open"; }
+}

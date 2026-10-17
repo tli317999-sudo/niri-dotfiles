@@ -17,6 +17,7 @@
 | `gtklock/` | 锁屏配置（壁纸由 lock 脚本写入） |
 | `kde/` | KDE 配色方案、Darkly 控件风格透明度、SDDM drop-in |
 | `themes/` | 主题系统：色板 + 模板 + 渲染器 |
+| `docs/` | 上游 bug 报告存档（见 `docs/upstream-issues/`） |
 | `bin/` | 各种小脚本（见下） |
 
 ## 脚本
@@ -129,6 +130,34 @@ wallpaper --no-follow   # 关掉跟随，壁纸和配色解耦
 wallpaper --follow      # 重新打开
 WALL_CONTRAST=0.3 wallpaper   # 取色对比度更高
 ```
+
+## 可选：用 Clavis 接管顶部 UI
+
+这套配置默认用 waybar + fuzzel + mako/swaync。也可以把整个顶部 UI 交给
+[Clavis](https://github.com/StatIndet/quickshell)（Quickshell 写的 niri shell：状态栏、Spotlight、
+侧栏、控制中心、锁屏、桌面卡片）。
+
+它**不会**改你的 niri 主配置，只写自己的片段；本仓库已经把 include 和占位文件准备好了：
+
+```kdl
+include "clavis/binds.kdl"        // 快捷键（预填了它的默认 11 个键）
+include "clavis/cursor.kdl"
+include "clavis/effects.kdl"
+include "clavis/layer-rules.kdl"
+```
+
+接管步骤：
+
+```bash
+systemctl --user enable --now clavis-shell clavis-clipboard
+# niri 配置里注释掉 waybar / mako / swaync / swayosd 的启动项
+# 剪贴板 Mod+Alt+V 让给 Clavis（模板里已注释掉 fuzzel 版本）
+```
+
+踩过的坑都写进 [`docs/upstream-issues/`](docs/upstream-issues/)：插件 `RUNPATH` 指向临时构建目录、
+安装器在 pacman 7.1 上跑不完。本机绕行方案也在那个目录里。
+
+想退回 waybar：停掉两个服务、取消模板里 waybar 那行注释、跑一次 `theme <名字>`。
 
 ## 快捷键
 
