@@ -119,6 +119,16 @@ for d in "$HOME/.config/gtk-3.0" "$HOME/.config/gtk-4.0"; do
         "${kv[@]}" "bar_rgb=$BAR_RGB" "bar_alpha=$BAR_ALPHA"
 done
 
+# GTK3 不认 :root 伪类（Firefox 这类 GTK3 程序会在 stderr 反复刷
+# "Invalid name of pseudo-class"），只有 GTK4/libadwaita 才支持 CSS 变量，
+# 所以从 gtk-3.0 的副本里删掉 :root { ... } 这一段。
+awk 'BEGIN{skip=0}
+     /^:root \{/ {skip=1; next}
+     skip==1 && /^\}/ {skip=0; next}
+     skip==0 {print}' \
+    "$HOME/.config/gtk-3.0/custom.css" > "$HOME/.config/gtk-3.0/custom.css.tmp" \
+    && mv "$HOME/.config/gtk-3.0/custom.css.tmp" "$HOME/.config/gtk-3.0/custom.css"
+
 # Ghostty 终端配色（没装 ghostty 也照样生成，装了直接用）
 mkdir -p "$HOME/.config/ghostty"
 "$RENDER" "$TPL_DIR/ghostty-config" "$HOME/.config/ghostty/config" "${kv[@]}" 2>/dev/null || true

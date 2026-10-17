@@ -8,8 +8,8 @@
 
 | 文件 | 问题 | 状态 |
 |---|---|---|
-| [01-runpath-plugins.md](01-runpath-plugins.md) | 安装后 QML 插件找不到同目录的 `libClavis*.so`——`DT_RUNPATH` 写死了 makepkg 的临时构建目录（`/tmp/clavis-build-*`）。表现为 `Type ApplicationService unavailable` 这类误导性的 QML 错误。 | 待上游修复 |
-| [02-installer-pacman71-and-debug.md](02-installer-pacman71-and-debug.md) | 安装器在 pacman 7.1 上跑不完：① `pacman -Qp --print-format` 被拒绝；② `makepkg --packagelist` 列出的 `-debug` 包对纯数据包（字体）不存在，却被当作致命错误。 | 待上游修复 |
+| [01-runpath-plugins.md](01-runpath-plugins.md) | 安装后 QML 插件找不到同目录的 `libClavis*.so`——`DT_RUNPATH` 写死了 makepkg 的临时构建目录（`/tmp/clavis-build-*`）。表现为 `Type ApplicationService unavailable` 这类误导性的 QML 错误。 | [#20](https://github.com/StatIndet/quickshell/issues/20) · open |
+| [02-installer-pacman71-and-debug.md](02-installer-pacman71-and-debug.md) | 安装器在 pacman 7.1 上跑不完：① `pacman -Qp --print-format` 被拒绝；② `makepkg --packagelist` 列出的 `-debug` 包对纯数据包（字体）不存在，却被当作致命错误。 | [#21](https://github.com/StatIndet/quickshell/issues/21) · open |
 
 ### 本机采用的绕行方案
 
