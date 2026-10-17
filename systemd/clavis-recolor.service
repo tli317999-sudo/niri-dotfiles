@@ -1,0 +1,17 @@
+[Unit]
+Description=Clavis 壁纸变化 → 我们的主题跟色
+Documentation=file:%h/.local/bin/clavis-recolor
+# 跟随 niri 会话生命周期（和 clavis-shell 一致）
+Requisite=niri.service
+PartOf=niri.service
+After=niri.service clavis-shell.service
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/clavis-recolor
+Restart=on-failure
+RestartSec=5
+Nice=10
+
+[Install]
+WantedBy=niri.service

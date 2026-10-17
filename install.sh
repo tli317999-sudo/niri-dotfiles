@@ -90,6 +90,18 @@ else
     install -m 644 "$REPO/niri/config.kdl" "$HOME/.config/niri/"
 fi
 
+# ── 5b. systemd 用户单元 ──────────────────────
+if [[ -d $REPO/systemd ]]; then
+    say "安装 systemd 用户单元"
+    mkdir -p "$HOME/.config/systemd/user"
+    for u in "$REPO"/systemd/*.service; do
+        backup "$HOME/.config/systemd/user/$(basename "$u")"
+        install -m 644 "$u" "$HOME/.config/systemd/user/"
+    done
+    systemctl --user daemon-reload 2>/dev/null || true
+    ok "单元已安装（用 systemctl --user enable --now 启用）"
+fi
+
 # ── 6. 自检 ───────────────────────────────────
 say "自检"
 command -v niri >/dev/null && niri validate -c "$HOME/.config/niri/config.kdl" >/dev/null 2>&1 \

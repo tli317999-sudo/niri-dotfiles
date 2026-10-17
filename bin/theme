@@ -285,9 +285,10 @@ else
     echo "  ⚠ niri 配置校验失败，未重载（先查 config.kdl）" >&2
 fi
 pkill -SIGUSR2 -x waybar 2>/dev/null && echo "  ✓ waybar 已重载"
-command -v makoctl >/dev/null && makoctl reload >/dev/null 2>&1 && echo "  ✓ mako 已重载"
-# swaync：重载 CSS（它在跑的时候才有效）
-command -v swaync-client >/dev/null && swaync-client -rs >/dev/null 2>&1 && echo "  ✓ swaync 配色已重载"
+# 注意：这两个客户端在守护进程没跑的时候会卡住等 D-Bus，必须加超时，
+# 否则整个 theme 会一直握着锁，后面的换壁纸全被阻塞。
+command -v makoctl >/dev/null && timeout 5 makoctl reload >/dev/null 2>&1 && echo "  ✓ mako 已重载"
+command -v swaync-client >/dev/null && timeout 5 swaync-client -rs >/dev/null 2>&1 && echo "  ✓ swaync 配色已重载"
 
 printf '%s\n' "$SLUG" > "$STATE"
 echo "✔ 现在是 $NAME"

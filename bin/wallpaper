@@ -135,6 +135,12 @@ if [[ ${1:-} == --apply ]]; then
     exit $rc
 fi
 
+# ── 只重算配色（壁纸由别的程序负责渲染，比如 Clavis）──
+if [[ ${1:-} == --recolor ]]; then
+    follow_wallpaper_colors "${2:?缺少图片路径}"
+    exit $?
+fi
+
 # ── 收集候选图片（最多两层目录）──────────────
 mapfile -t files < <(find "$DIR" -maxdepth 2 -type f \
     \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \) | sort)

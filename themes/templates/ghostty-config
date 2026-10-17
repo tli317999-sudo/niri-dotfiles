@@ -10,8 +10,9 @@ window-padding-x = 12
 window-padding-y = 10
 window-padding-balance = true
 
-# 半透明（niri 里没有模糊协议，0.9 左右比较稳）
-background-opacity = 0.90
+# 终端背景保持不透明，透明度交给 niri 的 window-rule 统一处理，
+# 这样和 Konsole 完全一致（否则两处叠加会双重透明）
+background-opacity = 1.0
 
 cursor-style = block
 cursor-style-blink = false

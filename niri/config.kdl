@@ -178,8 +178,8 @@ layout {
 
     // You can change how the focus ring looks.
     focus-ring {
-        // Uncomment this line to disable the focus ring.
-        // off
+        // 关闭焦点环：不想要窗口周围那圈彩色描边
+        off
 
         // How many logical pixels the ring extends out from the windows.
         // Catppuccin Mocha 风格：细环比默认的 4px 精致得多。
@@ -192,13 +192,13 @@ layout {
 
         // Color of the ring on the active monitor.
         // Catppuccin Mocha blue
-        active-color "#bdc2ff"
+        active-color "#f6b2df"
 
         // Color of the ring on inactive monitors.
         //
         // The focus ring only draws around the active window, so the only place
         // where you can see its inactive-color is on other monitors.
-        inactive-color "#1d2041"
+        inactive-color "#401d34"
 
         // You can also use gradients. They take precedence over solid colors.
         // Gradients are rendered the same as CSS linear-gradient(angle, from, to).
@@ -273,7 +273,7 @@ layout {
 
         // You can also change the shadow color and opacity.
         // Catppuccin Mocha crust + 60% 不透明度
-        color "#0d0e1399"
+        color "#120c1099"
     }
 
     // Struts shrink the area occupied by windows, similarly to layer-shell panels.
@@ -301,7 +301,10 @@ layout {
 
 // 壁纸：由 wallpaper-start 还原上次选的那张。
 // 装了 awww 就走带过渡动画的路径，没装则自动退回 swaybg 硬切。
-spawn-sh-at-startup "$HOME/.local/bin/wallpaper-start"
+// 壁纸交给 Clavis：它用 desktopBackend=quickshell 自己合成壁纸并管理 Material You 配色。
+// 我们的 wallpaper-start 会再用 awww 画一张，两边抢图层且配色互相覆盖，所以关掉。
+// 想换回来：取消下面一行注释，并在 Clavis 设置里关掉它的壁纸后端。
+// spawn-sh-at-startup "$HOME/.local/bin/wallpaper-start"
 
 // 通知守护：装了 swaync 就用它（带通知中心），否则退回 mako。
 // 两者都实现 org.freedesktop.Notifications，同时起会打架，所以只启动一个。
@@ -353,12 +356,12 @@ screenshot-path "~/Pictures/Screenshots/Screenshot from %Y-%m-%d %H-%M-%S.png"
 // 总览（Mod+O）：背景用主题最深色，工作区加投影，缩到 0.75
 overview {
     zoom 0.75
-    backdrop-color "#0d0e13"
+    backdrop-color "#120c10"
     workspace-shadow {
         softness 40
         spread 10
         offset x=0 y=8
-        color "#0d0e13aa"
+        color "#120c10aa"
     }
 }
 
@@ -426,7 +429,7 @@ window-rule {
 
 window-rule {
     match app-id=r#"^com\.mitchellh\.ghostty$"#
-    opacity 0.92
+    opacity 0.95
 }
 
 // 全局圆角：12px 是 Catppuccin 生态里最常见的窗口圆角。
@@ -456,19 +459,22 @@ binds {
     Mod+T hotkey-overlay-title="Open a Terminal" { spawn-sh "exec $HOME/.local/bin/term"; }
     Mod+D hotkey-overlay-title="Run an Application: fuzzel" { spawn "fuzzel"; }
     Mod+S hotkey-overlay-title="Open System Settings: systemsettings" { spawn "systemsettings"; }
-    Mod+B hotkey-overlay-title="Change Wallpaper: fuzzel" { spawn-sh "$HOME/.local/bin/wallpaper"; }
-    Mod+Shift+B hotkey-overlay-title="Random Wallpaper" { spawn-sh "$HOME/.local/bin/wallpaper --random"; }
+    // 换壁纸交给 Clavis（Mod+Alt+W → spotlight 的壁纸模式，或它的设置界面）。
+    // 自己那套 fuzzel 列表会和 Clavis 的壁纸状态打架，所以默认关掉。
+    // 想用回来就取消下面两行注释，并在 Clavis 里把桌面背景后端关掉。
+    // Mod+B hotkey-overlay-title="Change Wallpaper: fuzzel" { spawn-sh "$HOME/.local/bin/wallpaper"; }
+    // Mod+Shift+B hotkey-overlay-title="Random Wallpaper" { spawn-sh "$HOME/.local/bin/wallpaper --random"; }
     Super+Alt+L hotkey-overlay-title="Lock the Screen" { spawn-sh "exec $HOME/.local/bin/lock"; }
     Mod+Alt+N hotkey-overlay-title="Notification Center: swaync" { spawn-sh "command -v swaync-client >/dev/null && swaync-client -t -sw || notify-send \"通知中心\" \"swaync 未安装\""; }
 
     // 区域截图：slurp 框选 → grim 截图 → 存盘 + 直接进剪贴板
     Mod+Shift+S hotkey-overlay-title="Screenshot Region (annotate)" { spawn-sh "exec $HOME/.local/bin/shot"; }
 
-    // 剪贴板历史：cliphist 取出列表 → fuzzel 选 → 写回剪贴板
-    // 不用 Mod+V —— 它被下面的 toggle-window-floating 占了。
-    Mod+Alt+V hotkey-overlay-title="Clipboard History: cliphist + fuzzel" {
-        spawn-sh "cliphist list | fuzzel --dmenu --prompt '  剪贴板  ' | cliphist decode | wl-copy";
-    }
+    // 剪贴板历史：交给 Clavis 的 spotlight（Mod+Alt+V，见 niri/clavis/binds.kdl）
+    // 想用回 fuzzel 版本就取消注释，并删掉 binds.kdl 里的 Mod+Alt+V
+    // Mod+Alt+V hotkey-overlay-title="Clipboard History: cliphist + fuzzel" {
+    //     spawn-sh "cliphist list | fuzzel --dmenu --prompt '  剪贴板  ' | cliphist decode | wl-copy";
+    // }
 
     // Use spawn-sh to run a shell command. Do this if you need pipes, multiple commands, etc.
     // Note: the entire command goes as a single argument. It's passed verbatim to `sh -c`.

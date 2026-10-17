@@ -159,6 +159,27 @@ systemctl --user enable --now clavis-shell clavis-clipboard
 
 想退回 waybar：停掉两个服务、取消模板里 waybar 那行注释、跑一次 `theme <名字>`。
 
+### 壁纸归 Clavis，配色仍然全局跟
+
+Clavis 用 `desktopBackend: quickshell` 自己渲染壁纸，而它自带的 matugen 模板只覆盖
+quickshell / kitty / cava / btop / yazi——没有 Konsole、Ghostty、GTK、KDE。
+所以加了一个桥接 `bin/clavis-recolor`：轮询 `~/.config/clavis/config.json` 的
+`wallpaper.path`，一变就调：
+
+```
+wallpaper --recolor <path>   →   matugen 取色 → matugen-palette → theme wallpaper
+```
+
+这样 Clavis 负责“画哪张壁纸”，我们的主题系统负责“其余程序怎么跟着变色”。
+
+```bash
+systemctl --user status clavis-recolor      # 看桥接是否在跑
+cat ~/.cache/clavis-recolor.last            # 它最后处理的那张壁纸
+```
+
+副作用：`wallpaper` 的 `--apply` / fuzzel 选图不再使用（`Mod+B` 已解绑），
+壁纸切换统一走 Clavis（`Mod+Alt+W`）。
+
 ## 快捷键
 
 `Mod` = Super（Windows 键）。

@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# clavis-recolor — 桥接：Clavis 换壁纸 → 我们的主题跟着换色
+#
+# 背景：壁纸渲染交给 Clavis 了（desktopBackend=quickshell），但它自带的 matugen
+# 模板只覆盖 quickshell / kitty / cava / btop / yazi，没有 Konsole、Ghostty、
+# GTK、KDE。所以这里监听它的壁纸字段，变了就调我们的 matugen-palette + theme，
+# 让这些程序继续跟着壁纸变色。
+#
+# 只做配色，不碰壁纸本身（不启动 awww）。
+set -uo pipefail
+
+CFG="${XDG_CONFIG_HOME:-$HOME/.config}/clavis/config.json"
+STATE="${XDG_CACHE_HOME:-$HOME/.cache}/clavis-recolor.last"
+INTERVAL=${CLAVIS_RECOLOR_INTERVAL:-2}
+
+mkdir -p "$(dirname "$STATE")"
+last=$(cat "$STATE" 2>/dev/null || true)
+
+read_wallpaper() {
+    python3 - "$CFG" <<'PY' 2>/dev/null
+import json, sys
+try:
+    data = json.load(open(sys.argv[1], encoding="utf-8"))
+except Exception:
+    print("")
+    raise SystemExit
+w = data.get("wallpaper") or {}
+print(w.get("pathDark") or w.get("path") or "")
+PY
+}
+
+while sleep "$INTERVAL"; do
+    [[ -f $CFG ]] || continue
+    cur=$(read_wallpaper)
+    [[ -z $cur || $cur == "$last" ]] && continue
+    if [[ -f $cur ]]; then
+        last=$cur
+        printf '%s\n' "$cur" > "$STATE"
+        "$HOME/.local/bin/wallpaper" --recolor "$cur" >/dev/null 2>&1
+    fi
+done
