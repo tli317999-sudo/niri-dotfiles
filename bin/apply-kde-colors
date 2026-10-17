@@ -1,0 +1,50 @@
+#!/usr/bin/env python3
+"""apply-kde-colors — 把配色方案文件里的 [Colors:*] 段直接写进 kdeglobals
+
+为什么不靠 plasma-apply-colorscheme：它会把方案色值"合并"进 kdeglobals，
+但遇到某些段（实测 [Colors:Selection]）会保留旧值，导致同一个方案里
+窗口底色是新的、选中高亮还是上一套的。KDE 应用读的是 kdeglobals，
+于是「Overview 那个标签选中后颜色不匹配」。
+
+用法: apply-kde-colors <方案.colors> [kdeglobals 路径]
+"""
+import configparser
+import io
+import os
+import sys
+
+if len(sys.argv) < 2:
+    sys.exit("用法: apply-kde-colors <方案.colors> [kdeglobals]")
+
+src = sys.argv[1]
+dst = sys.argv[2] if len(sys.argv) > 2 else os.path.expanduser("~/.config/kdeglobals")
+
+# 方案文件里 key 没有缩进、也没有重复段，ConfigParser 够用；
+# 关掉插值，避免 % 之类被当成占位符
+scheme = configparser.RawConfigParser()
+scheme.optionxform = str  # 保留大小写
+scheme.read(src, encoding="utf-8")
+
+target = configparser.RawConfigParser()
+target.optionxform = str
+target.read(dst, encoding="utf-8")
+
+changed = 0
+for section in scheme.sections():
+    if not section.startswith("Colors:"):
+        continue
+    if not target.has_section(section):
+        target.add_section(section)
+    # 整段替换：先清掉旧 key，避免残留属于上一套配色的键
+    for key in list(target[section].keys()):
+        target.remove_option(section, key)
+    for key, value in scheme.items(section):
+        target.set(section, key, value)
+        changed += 1
+
+tmp = dst + ".tmp"
+with io.open(tmp, "w", encoding="utf-8") as f:
+    target.write(f, space_around_delimiters=False)
+os.replace(tmp, dst)
+
+print(f"已写入 {changed} 个颜色键到 {dst}")

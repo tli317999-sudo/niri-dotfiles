@@ -1,0 +1,7 @@
+*.bak
+*.bak.*
+*.catppuccin.bak
+*.pretemplate.bak
+.DS_Store
+__pycache__/
+*.pyc

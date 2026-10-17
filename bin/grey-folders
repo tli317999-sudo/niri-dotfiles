@@ -1,0 +1,94 @@
+#!/usr/bin/env python3
+"""grey-folders — 生成一个"文件夹是灰色"的 Papirus 覆盖主题
+
+为什么用覆盖主题而不是复制整个 Papirus-Dark：
+Papirus-Dark 的各尺寸目录是指向 Papirus 的符号链接，解引用后整棵树 1.6G。
+只提供 folder*/user* 这几百个图标、其余继承 Papirus-Dark，最终只有 1MB 出头。
+
+只把"蓝色系"颜色去饱和成灰，图标上的其它颜色（橙色羽毛、绿色徽章）不动。
+"""
+import colorsys
+import os
+import re
+import shutil
+
+SRC = "/usr/share/icons/Papirus-Dark/16x16/places"   # 真实文件都在这一层
+DST = os.path.expanduser("~/.local/share/icons/Papirus-Grey")
+SIZES = [16, 22, 24, 32, 48, 64, 96]
+
+HEX = re.compile(r"#([0-9a-fA-F]{6})")
+
+
+def to_grey(hexstr):
+    r, g, b = (int(hexstr[i:i + 2], 16) / 255 for i in (0, 2, 4))
+    h, l, s = colorsys.rgb_to_hls(r, g, b)
+    if not (195 <= h * 360 <= 255 and s >= 0.25):
+        return None
+    # 默认保留原明度（保留渐变层次）；设 GREY_L 可强制统一到某个亮度
+    target_l = float(os.environ.get("GREY_L", l))
+    nr, ng, nb = colorsys.hls_to_rgb(h, target_l, 0.05)
+    return "%02x%02x%02x" % (round(nr * 255), round(ng * 255), round(nb * 255))
+
+
+def main():
+    if os.path.isdir(DST):
+        shutil.rmtree(DST)
+
+    # 注意 inode-directory：Dolphin 对普通文件夹用的其实是这个名字，
+    # 漏掉它就会出现"别的都灰了，文件夹还是蓝的"
+    KEEP = ("folder", "inode", "user")
+    names = [n for n in os.listdir(SRC)
+             if n.endswith(".svg") and any(k in n for k in KEEP)]
+
+    changed_colors = 0
+    converted = {}
+
+    for name in names:
+        try:
+            s = open(os.path.join(SRC, name), encoding="utf-8",
+                     errors="ignore").read()
+        except OSError:
+            continue
+
+        def repl(m):
+            nonlocal changed_colors
+            new = to_grey(m.group(1))
+            if new is None:
+                return m.group(0)
+            changed_colors += 1
+            return "#" + new
+
+        converted[name] = HEX.sub(repl, s)
+
+    # 图标本体：同一份 SVG 放进每个尺寸目录（SVG 本来就是矢量的）
+    for sub in [f"{n}x{n}/places" for n in SIZES] + ["scalable/places"]:
+        out = os.path.join(DST, sub)
+        os.makedirs(out, exist_ok=True)
+        for name, content in converted.items():
+            open(os.path.join(out, name), "w", encoding="utf-8").write(content)
+
+    # index.theme（必须在目录建好之后写）
+    dirs = ", ".join(f"{n}x{n}/places" for n in SIZES) + ", scalable/places"
+    lines = [
+        "[Icon Theme]",
+        "Name=Papirus-Grey",
+        "Comment=Papirus-Dark with grey folders",
+        "Inherits=Papirus-Dark,breeze-dark,hicolor",
+        f"Directories={dirs}",
+        "",
+    ]
+    for n in SIZES:
+        lines += [f"[{n}x{n}/places]", f"Size={n}", "Context=Places",
+                  "Type=Fixed", ""]
+    lines += ["[scalable/places]", "Size=128", "MinSize=8", "MaxSize=512",
+              "Context=Places", "Type=Scalable", ""]
+
+    open(os.path.join(DST, "index.theme"), "w", encoding="utf-8").write(
+        "\n".join(lines))
+
+    print(f"生成 {len(converted)} 个灰色图标，共 {changed_colors} 处蓝色 → 灰")
+    print(f"主题目录: {DST}")
+
+
+if __name__ == "__main__":
+    main()

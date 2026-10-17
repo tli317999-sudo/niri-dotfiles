@@ -1,0 +1,10 @@
+[Common]
+ShadowStrength=51
+
+[Style]
+DolphinSidebarOpacity=100
+DolphinViewOpacity=100
+MenuBarOpacity=80
+MenuOpacity=85
+TabBarOpacity=80
+ToolBarOpacity=80

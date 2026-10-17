@@ -1,0 +1,20 @@
+/* 由 theme 脚本自动生成，主题切换时会重新渲染，不要手改这个文件的主色 */
+/* 顶栏颜色取自色板里的 GTK_BAR_ROLE，所以永远跟当前主题同一色系；
+   alpha 只是让壁纸透一点点，不会把顶栏染成壁纸的颜色。
+   注意 libadwaita 会给 headerbar 自己刷一遍背景，不加 !important 盖不住。 */
+
+headerbar,
+.titlebar,
+headerbar.titlebar,
+window > headerbar,
+window.csd > .titlebar {
+    background-color: rgba({{bar_rgb}}, {{bar_alpha}}) !important;
+    background-image: none !important;
+    box-shadow: none;
+}
+
+/* 顶栏里的按钮别跟着透明，否则图标糊在壁纸上 */
+headerbar button,
+.titlebar button {
+    background-color: alpha(currentColor, 0.06);
+}

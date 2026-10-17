@@ -1,0 +1,185 @@
+/* ─────────────────────────────────────────────
+   waybar — Catppuccin Mocha
+   面板透明，每个模块是独立的圆角胶囊
+   ───────────────────────────────────────────── */
+
+* {
+    font-family: "JetBrainsMono Nerd Font", "Noto Sans CJK SC", sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    min-height: 0;
+    border: none;
+    border-radius: 0;
+}
+
+window#waybar {
+    background: transparent;
+    color: #{{text}};
+}
+
+/* ── 工作区 ─────────────────────────────── */
+#workspaces {
+    background: transparent;
+}
+
+#workspaces button {
+    padding: 0 10px;
+    margin: 0 2px;
+    min-width: 12px;
+    border-radius: 10px;
+    background: #{{base}};
+    color: #{{overlay0}};
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+#workspaces button:hover {
+    background: #{{surface0}};
+    color: #{{text}};
+}
+
+#workspaces button.active {
+    background: #{{blue}};
+    color: #{{crust}};
+    font-weight: 700;
+}
+
+#workspaces button.urgent {
+    background: #{{red}};
+    color: #{{crust}};
+}
+
+/* ── 所有右侧/左侧胶囊模块 ──────────────── */
+#window,
+#mpris,
+#pulseaudio,
+#network,
+#cpu,
+#memory,
+#battery,
+#tray {
+    padding: 0 12px;
+    margin: 0 2px;
+    border-radius: 10px;
+    background: #{{base}};
+    color: #{{text}};
+}
+
+/* 当前窗口标题：弱化，避免抢视线 */
+#window {
+    background: transparent;
+    color: #{{subtext0}};
+    font-style: italic;
+}
+
+/* 时钟：整条栏唯一的强调色块 */
+#clock {
+    padding: 0 16px;
+    margin: 0 2px;
+    border-radius: 10px;
+    background: #{{blue}};
+    color: #{{crust}};
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+/* ── 状态色 ─────────────────────────────── */
+#mpris {
+    color: #{{purple}};
+}
+
+#pulseaudio.muted {
+    color: #{{overlay0}};
+}
+
+#network.disconnected {
+    color: #{{red}};
+}
+
+#cpu {
+    color: #{{cyan}};
+}
+
+#memory {
+    color: #{{purple}};
+}
+
+#battery {
+    color: #{{green}};
+}
+
+#battery.charging,
+#battery.plugged {
+    color: #{{green}};
+}
+
+#battery.warning:not(.charging) {
+    color: #{{yellow}};
+}
+
+#battery.critical:not(.charging) {
+    color: #{{red}};
+    animation: blink 0.8s infinite alternate;
+}
+
+@keyframes blink {
+    to {
+        background: #{{red}};
+        color: #{{crust}};
+    }
+}
+
+/* ── 托盘 ───────────────────────────────── */
+#tray {
+    padding: 0 10px;
+}
+
+#tray > .passive {
+    -gtk-icon-effect: dim;
+}
+
+#tray > .needs-attention {
+    -gtk-icon-effect: highlight;
+    background: #{{red}};
+}
+
+/* ── 电源按钮 ───────────────────────────── */
+#custom-power {
+    padding: 0 12px;
+    margin: 0 2px;
+    border-radius: 10px;
+    background: #{{base}};
+    color: #{{red}};
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+#custom-power:hover {
+    background: #{{red}};
+    color: #{{crust}};
+}
+
+/* 所有可点击模块的手感反馈 */
+#pulseaudio:hover,
+#network:hover,
+#cpu:hover,
+#memory:hover,
+#battery:hover,
+#mpris:hover {
+    background: #{{surface0}};
+}
+
+#clock:hover {
+    background: #{{purple}};
+    color: #{{crust}};
+}
+
+/* ── tooltip ────────────────────────────── */
+tooltip {
+    background: #{{mantle}};
+    border: 1px solid #{{surface0}};
+    border-radius: 10px;
+}
+
+tooltip label {
+    color: #{{text}};
+    padding: 4px;
+}

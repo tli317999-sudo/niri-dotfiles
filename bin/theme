@@ -1,0 +1,270 @@
+#!/usr/bin/env bash
+# theme — 整套换主题（niri / waybar / fuzzel / mako / KDE / Konsole / GTK）
+#   theme            列出可用主题
+#   theme current    看当前用的是哪个
+#   theme <名字>     切换
+set -uo pipefail
+
+THEMES="${XDG_CONFIG_HOME:-$HOME/.config}/themes"
+PAL_DIR="$THEMES/palettes"
+TPL_DIR="$THEMES/templates"
+RENDER="$THEMES/render.py"
+STATE="$THEMES/current"
+
+GTK_BASE="$HOME/.local/share/themes/catppuccin-mocha-blue-standard+default"
+KDE_BASE="$HOME/.local/share/color-schemes/CatppuccinMocha.colors"
+KONSOLE_BASE="$HOME/.local/share/konsole/CatppuccinMocha.colorscheme"
+KONSOLE_PROFILE="$HOME/.local/share/konsole/mytrans.profile"
+
+ROLES="base mantle crust surface0 surface1 surface2 overlay0 subtext0 text blue purple green yellow orange red teal cyan"
+
+# 和 wallpaper 共用一把锁：换壁纸时会连带着调 theme，
+# 那种情况锁已经在我手里（NIRI_THEME_LOCKED），不用再抢
+if [[ -z ${NIRI_THEME_LOCKED:-} ]]; then
+    LOCK="${XDG_RUNTIME_DIR:-/tmp}/niri-theme.lock"
+    exec 9>"$LOCK"
+    if ! flock -w 30 9; then
+        echo "另一个换壁纸/换主题的进程占着锁超过 30 秒，放弃本次操作" >&2
+        command -v notify-send >/dev/null && \
+            notify-send -a "主题" "上一次换壁纸/换主题还没结束" "稍等一秒再试"
+        exit 1
+    fi
+    export NIRI_THEME_LOCKED=1
+fi
+
+# 基准（Catppuccin）色值 → 角色，用于生成 KDE / Konsole / GTK
+CM_HEX="1e1e2e:base 181825:mantle 11111b:crust 313244:surface0 45475a:surface1 \
+585b70:surface2 6c7086:overlay0 a6adc8:subtext0 cdd6f4:text 89b4fa:blue \
+cba6f7:purple b4befe:purple f5c2e7:purple a6e3a1:green f9e2af:yellow \
+fab387:orange f38ba8:red 94e2d5:teal 89dceb:cyan 74c7ec:cyan"
+
+hex2rgb() { printf '%d,%d,%d' 0x${1:0:2} 0x${1:2:2} 0x${1:4:2}; }
+
+list_themes() {
+    echo "可用主题："
+    for f in "$PAL_DIR"/*.conf; do
+        local slug name mark=""
+        slug=$(basename "$f" .conf)
+        name=$(grep -m1 '^NAME=' "$f" | cut -d'"' -f2)
+        [[ -f $STATE ]] && [[ $(cat "$STATE") == "$slug" ]] && mark="  ← 当前"
+        printf '  %-18s %s%s\n' "$slug" "$name" "$mark"
+    done
+}
+
+if [[ ${1:-} == current ]]; then
+    [[ -f $STATE ]] && cat "$STATE" || echo "(还没设置过，当前是文件里的原始色值)"
+    exit 0
+fi
+
+if [[ -z ${1:-} || ${1:-} == list ]]; then
+    list_themes
+    exit 0
+fi
+
+# fuzzel 里挑一个主题（只显示名字，选完按名字反查 slug）
+if [[ ${1:-} == pick ]]; then
+    sel=$(for f in "$PAL_DIR"/*.conf; do
+              grep -m1 '^NAME=' "$f" | cut -d'"' -f2
+          done | fuzzel --dmenu --no-sort --prompt '  主题  ' --lines 8 --placeholder '选择主题') || exit 0
+    [[ -z ${sel:-} ]] && exit 0
+
+    slug=""
+    for f in "$PAL_DIR"/*.conf; do
+        if [[ $(grep -m1 '^NAME=' "$f" | cut -d'"' -f2) == "$sel" ]]; then
+            slug=$(basename "$f" .conf)
+            break
+        fi
+    done
+    [[ -z $slug ]] && { echo "没匹配到主题: $sel" >&2; exit 1; }
+    set -- "$slug"
+fi
+
+SLUG=$1
+PAL="$PAL_DIR/$SLUG.conf"
+[[ -f $PAL ]] || { echo "没有这个主题: $SLUG" >&2; list_themes >&2; exit 1; }
+
+# 载入色板（NAME= 和一堆 role=hex）
+# shellcheck disable=SC1090
+source "$PAL"
+
+echo "▶ 切换到 $NAME"
+
+# ── 1. 渲染配置文件 ───────────────────────────
+declare -a kv=()
+for r in $ROLES; do kv+=("$r=${!r}"); done
+
+render_one() {
+    local tpl=$1 out=$2
+    "$RENDER" "$tpl" "$out" "${kv[@]}"
+}
+
+render_one "$TPL_DIR/waybar-style.css"    "$HOME/.config/waybar/style.css"
+render_one "$TPL_DIR/waybar-config.jsonc" "$HOME/.config/waybar/config.jsonc"
+render_one "$TPL_DIR/fuzzel.ini"          "$HOME/.config/fuzzel/fuzzel.ini"
+render_one "$TPL_DIR/mako-config"         "$HOME/.config/mako/config"
+render_one "$TPL_DIR/niri-config.kdl"     "$HOME/.config/niri/config.kdl"
+
+# GTK 顶栏：颜色取自色板里的角色（默认 surface0），所以永远跟着主题色系走。
+# 透明度用 GTK_BAR_ALPHA 调（0-1）。
+BAR_ROLE=${GTK_BAR_ROLE:-mantle}
+BAR_ALPHA=${GTK_BAR_ALPHA:-0.80}
+case "$BAR_ROLE" in
+    base|mantle|crust|surface0|surface1|surface2) ;;
+    *) BAR_ROLE=surface0 ;;
+esac
+BAR_RGB=$(hex2rgb "${!BAR_ROLE}")
+for d in "$HOME/.config/gtk-3.0" "$HOME/.config/gtk-4.0"; do
+    mkdir -p "$d"
+    "$RENDER" "$TPL_DIR/gtk-transparency.css" "$d/custom.css" \
+        "${kv[@]}" "bar_rgb=$BAR_RGB" "bar_alpha=$BAR_ALPHA"
+done
+
+# Qt/KDE 应用的工具栏、标签栏、菜单栏透明度（Darkly 控件风格）
+# 不写就默认 85%，保证每个主题都有同样的"顶栏比主体深一档"的层次
+DARKLY_OP=${DARKLY_BAR_OPACITY:-80}
+for k in ToolBarOpacity TabBarOpacity MenuBarOpacity; do
+    kwriteconfig6 --file darklyrc --group Style --key "$k" "$DARKLY_OP"
+done
+echo "  ✓ Qt 顶栏透明度 $DARKLY_OP%（重启应用生效）"
+
+echo "  ✓ 配置文件已渲染"
+
+# ── 2. KDE 配色方案 ───────────────────────────
+KDE_OUT="$HOME/.local/share/color-schemes/Theme-$SLUG.colors"
+declare -a ksed=()
+for pair in $CM_HEX; do
+    h=${pair%%:*}; r=${pair#*:}
+    ksed+=(-e "s/$(hex2rgb "$h")/$(hex2rgb "${!r}")/g")
+done
+sed "${ksed[@]}" "$KDE_BASE" \
+    | sed -e "s/^Name=.*/Name=$NAME/" -e "s/^ColorScheme=.*/ColorScheme=Theme-$SLUG/" > "$KDE_OUT"
+# plasma-apply-colorscheme 发现同名方案已启用时会直接跳过，
+# 但壁纸跟随模式下方案内容变了、名字没变，所以先切走再切回来强制刷新
+kwriteconfig6 --file kdeglobals --group General --key ColorScheme "BreezeDark"
+if [[ -n ${KDE_SCHEME:-} ]]; then
+    # 色板文件里指定了系统现成的方案（比如 Nordic）就直接用它，
+    # 这样 KDE 应用和它自带的 GTK/图标主题完全一致
+    plasma-apply-colorscheme "$KDE_SCHEME" >/dev/null 2>&1
+    echo "  ✓ KDE 配色使用现成方案 $KDE_SCHEME"
+else
+    plasma-apply-colorscheme "Theme-$SLUG" >/dev/null 2>&1
+    echo "  ✓ KDE 配色 Theme-$SLUG 已应用（强制刷新）"
+fi
+
+# plasma-apply-colorscheme 会"合并"进 kdeglobals，实测某些段（[Colors:Selection]）
+# 会保留旧值 → 窗口底色是新的、选中高亮还是上一套的。这里直接把方案文件的
+# [Colors:*] 整段覆盖进 kdeglobals，保证所有段一致。
+SCHEME_FILE="$KDE_OUT"
+if [[ -n ${KDE_SCHEME:-} ]]; then
+    for cand in "$HOME/.local/share/color-schemes/$KDE_SCHEME.colors" \
+                "/usr/share/color-schemes/$KDE_SCHEME.colors"; do
+        [[ -f $cand ]] && { SCHEME_FILE=$cand; break; }
+    done
+fi
+if [[ -f $SCHEME_FILE ]]; then
+    "$HOME/.local/bin/apply-kde-colors" "$SCHEME_FILE" >/dev/null 2>&1 \
+        && echo "  ✓ 已把 $(basename "$SCHEME_FILE") 的全部颜色段写进 kdeglobals"
+fi
+
+# 校验：拿 [Colors:Selection] 当探针（之前出问题的就是这一段）
+want_sel=$(sed -n '/\[Colors:Selection\]/,+3p' "$SCHEME_FILE" 2>/dev/null |
+           grep -m1 '^BackgroundNormal=' | cut -d= -f2)
+got_sel=$(kreadconfig6 --file kdeglobals --group "Colors:Selection" --key BackgroundNormal 2>/dev/null)
+if [[ -n $want_sel && "$got_sel" != "$want_sel" ]]; then
+    echo "  ⚠ 选中高亮色没同步（$got_sel ≠ $want_sel），重写一次" >&2
+    "$HOME/.local/bin/apply-kde-colors" "$SCHEME_FILE" >/dev/null 2>&1
+    got_sel=$(kreadconfig6 --file kdeglobals --group "Colors:Selection" --key BackgroundNormal 2>/dev/null)
+    [[ "$got_sel" == "$want_sel" ]] && echo "  ✓ 已修正"
+fi
+
+# 通知已经在跑的应用重绘（plasma-apply-colorscheme 会发这个信号，
+# 但它跳过应用时不会发，所以这里补一发）
+dbus-send --session --type=signal /KGlobalSettings \
+    org.kde.KGlobalSettings.notifyChange int32:0 int32:0 >/dev/null 2>&1 || true
+
+kwriteconfig6 --file kdeglobals --group General --key AccentColor "$(hex2rgb "$blue")"
+
+# ── 2b. 图标主题 ──────────────────────────────
+if [[ -n ${ICON_THEME:-} ]]; then
+    kwriteconfig6 --file kdeglobals --group Icons --key Theme "$ICON_THEME"
+    gsettings set org.gnome.desktop.interface icon-theme "$ICON_THEME" 2>/dev/null
+    for ini in "$HOME/.config/gtk-3.0/settings.ini" "$HOME/.config/gtk-4.0/settings.ini"; do
+        [[ -f $ini ]] && sed -i "s/^gtk-icon-theme-name=.*/gtk-icon-theme-name=$ICON_THEME/" "$ini"
+    done
+    rm -f "$HOME/.cache/icon-cache.kcache"
+    echo "  ✓ 图标主题 $ICON_THEME 已应用"
+fi
+
+# ── 3. Konsole ────────────────────────────────
+KON_OUT="$HOME/.local/share/konsole/Theme-$SLUG.colorscheme"
+sed "${ksed[@]}" "$KONSOLE_BASE" | sed -e "s/^Description=.*/Description=$NAME/" > "$KON_OUT"
+if [[ -f $KONSOLE_PROFILE ]]; then
+    sed -i "s/^ColorScheme=.*/ColorScheme=Theme-$SLUG/" "$KONSOLE_PROFILE"
+fi
+echo "  ✓ Konsole 配色 Theme-$SLUG 已就绪（新开终端生效）"
+
+# ── 4. GTK 主题 ───────────────────────────────
+# 优先用色板里指定的现成主题（比如 Nordic），找不到才从 Catppuccin 基准重着色生成
+GTK_APPLIED=""
+if [[ -n ${GTK_THEME:-} ]]; then
+    for base in "$HOME/.themes/$GTK_THEME" "$HOME/.local/share/themes/$GTK_THEME" \
+                "/usr/share/themes/$GTK_THEME"; do
+        if [[ -d $base/gtk-3.0 ]]; then
+            GTK_DIR=$base
+            break
+        fi
+    done
+fi
+
+if [[ -n ${GTK_DIR:-} ]]; then
+    gsettings set org.gnome.desktop.interface gtk-theme "$GTK_THEME" 2>/dev/null
+    for ini in "$HOME/.config/gtk-3.0/settings.ini" "$HOME/.config/gtk-4.0/settings.ini"; do
+        [[ -f $ini ]] && sed -i "s/^gtk-theme-name=.*/gtk-theme-name=$GTK_THEME/" "$ini"
+    done
+    # libadwaita 应用只认这个 import，深色要指到 gtk-dark.css
+    dark_css="$GTK_DIR/gtk-4.0/gtk-dark.css"
+    [[ -f $dark_css ]] || dark_css="$GTK_DIR/gtk-4.0/gtk.css"
+    printf '@import url("file://%s");\n@import url("file://%s/custom.css");\n' \
+        "$dark_css" "$HOME/.config/gtk-4.0" > "$HOME/.config/gtk-4.0/gtk.css"
+    printf '@import url("file://%s/custom.css");\n' \
+        "$HOME/.config/gtk-3.0" > "$HOME/.config/gtk-3.0/gtk.css"
+    GTK_APPLIED=$GTK_THEME
+    echo "  ✓ GTK 主题 $GTK_THEME（现成主题）已启用"
+elif [[ -d $GTK_BASE ]]; then
+    GTK_OUT="$HOME/.local/share/themes/theme-$SLUG"
+    rm -rf "$GTK_OUT"
+    cp -r "$GTK_BASE" "$GTK_OUT"
+
+    declare -a gsed=()
+    for pair in $CM_HEX; do
+        h=${pair%%:*}; r=${pair#*:}
+        gsed+=(-e "s/$h/${!r}/g" -e "s/${h^^}/${!r^^}/g")
+    done
+    find "$GTK_OUT" -type f \( -name '*.css' -o -name '*.svg' \) -exec sed -i "${gsed[@]}" {} +
+    sed -i -e "s/catppuccin-mocha-blue-standard+default/theme-$SLUG/g" \
+           -e "s/Catppuccin Mocha/$NAME/g" "$GTK_OUT/index.theme"
+
+    gsettings set org.gnome.desktop.interface gtk-theme "theme-$SLUG" 2>/dev/null
+    for ini in "$HOME/.config/gtk-3.0/settings.ini" "$HOME/.config/gtk-4.0/settings.ini"; do
+        [[ -f $ini ]] && sed -i "s/^gtk-theme-name=.*/gtk-theme-name=theme-$SLUG/" "$ini"
+    done
+    printf '@import url("file://%s/gtk-4.0/gtk.css");\n@import url("file://%s/custom.css");\n' \
+        "$GTK_OUT" "$HOME/.config/gtk-4.0" > "$HOME/.config/gtk-4.0/gtk.css"
+    printf '@import url("file://%s/custom.css");\n' \
+        "$HOME/.config/gtk-3.0" > "$HOME/.config/gtk-3.0/gtk.css"
+    echo "  ✓ GTK 主题 theme-$SLUG 已生成并启用"
+fi
+
+# ── 5. 热重载 ─────────────────────────────────
+if niri validate -c "$HOME/.config/niri/config.kdl" >/dev/null 2>&1; then
+    niri msg action load-config-file >/dev/null 2>&1
+    echo "  ✓ niri 配置已重载"
+else
+    echo "  ⚠ niri 配置校验失败，未重载（先查 config.kdl）" >&2
+fi
+pkill -SIGUSR2 -x waybar 2>/dev/null && echo "  ✓ waybar 已重载"
+command -v makoctl >/dev/null && makoctl reload >/dev/null 2>&1 && echo "  ✓ mako 已重载"
+
+printf '%s\n' "$SLUG" > "$STATE"
+echo "✔ 现在是 $NAME"
+echo "  提示：已经开着的终端/文件管理器需要重开才会变色"

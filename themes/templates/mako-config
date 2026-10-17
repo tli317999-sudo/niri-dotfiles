@@ -1,0 +1,35 @@
+# ─────────────────────────────────────────────
+# mako — Catppuccin Mocha 通知
+# 改完不需要重启，makoctl reload 即可
+# ─────────────────────────────────────────────
+
+font=JetBrainsMono Nerd Font 11
+background-color=#{{base}}
+text-color=#{{text}}
+border-color=#{{blue}}
+progress-color=over #{{surface0}}
+
+border-size=1
+border-radius=12
+padding=12
+margin=8
+width=340
+height=140
+
+default-timeout=6000
+icons=1
+max-icon-size=48
+icon-border-radius=8
+anchor=top-right
+layer=overlay
+
+# 同一应用的通知堆叠成一条，别糊满屏幕
+group-by=app-name
+
+[urgency=critical]
+border-color=#{{red}}
+default-timeout=0
+
+[urgency=low]
+border-color=#{{surface0}}
+text-color=#{{subtext0}}

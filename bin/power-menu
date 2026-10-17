@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# power-menu — fuzzel 版电源菜单
+# 绑定：waybar 最右侧电源模块左键
+set -uo pipefail
+
+# 用 fuzzel 的 rofi 兼容图标语法：<文本>\0icon\x1f<图标名>
+# 图标名由 Papirus-Dark 主题解析，比手打 unicode 码位稳
+choice=$(printf '%s\0icon\x1f%s\n' \
+    '锁屏' 'system-lock-screen' \
+    '注销' 'system-log-out' \
+    '挂起' 'system-suspend' \
+    '重启' 'system-reboot' \
+    '关机' 'system-shutdown' |
+    fuzzel --dmenu --no-sort --prompt '  电源  ' --lines 5) || exit 0
+
+[[ -z ${choice:-} ]] && exit 0
+
+case "$choice" in
+    *锁屏*) swaylock -f -c 11111b ;;
+    *注销*) niri msg action quit --skip-confirmation ;;
+    *挂起*) systemctl suspend ;;
+    *重启*) systemctl reboot ;;
+    *关机*) systemctl poweroff ;;
+esac

@@ -1,0 +1,167 @@
+#!/usr/bin/env bash
+# wallpaper — 选壁纸 / 应用壁纸
+#   wallpaper                  fuzzel 里挑一张
+#   wallpaper --random         随机挑
+#   wallpaper --apply <路径>   直接应用（开机自启走这个）
+#   wallpaper --follow         开：配色跟着壁纸走（需装 matugen）
+#   wallpaper --no-follow      关：配色保持当前主题
+#
+# 引擎：装了 awww 就用 awww（带过渡动画），否则退回 swaybg（硬切）
+set -uo pipefail
+
+DIR=${WALL_DIR:-$HOME/Pictures}
+CONF_DIR="${XDG_CONFIG_HOME:-$HOME/.config}"
+STATE="$CONF_DIR/niri/wallpaper"
+FOLLOW_FLAG="$CONF_DIR/niri/wallpaper-follow"
+FOLLOW_CACHE="$CONF_DIR/niri/wallpaper-follow-source"
+PALETTE_OUT="$CONF_DIR/themes/palettes/wallpaper.conf"
+TRANSITION_TYPE=${WALL_TRANSITION:-wave}
+TRANSITION_DURATION=${WALL_TRANSITION_DURATION:-1.2}
+TRANSITION_ANGLE=${WALL_TRANSITION_ANGLE:-45}
+TRANSITION_WAVE=${WALL_TRANSITION_WAVE:-20,20}
+
+# ── 串行化 ────────────────────────────────────
+# 换壁纸 + 取色 + 换肤要 2 秒左右。如果连着点两下 Mod+B（或者随机键），
+# 两个进程会交叉执行：A 先写壁纸、B 写了色板、A 再按 B 的色板渲染主题，
+# 结果就是「色板 / .colors / kdeglobals」三份状态互相对不上，看起来像旧色系。
+# 用一把锁把整个流程串起来，后来者等前一个做完。
+LOCK="${XDG_RUNTIME_DIR:-/tmp}/niri-theme.lock"
+exec 9>"$LOCK"
+if ! flock -w 8 9; then
+    echo "另一个换壁纸/换主题的进程占着锁超过 8 秒，放弃本次操作" >&2
+    command -v notify-send >/dev/null && notify-send -a "壁纸" "上一次换壁纸/换主题还没结束" "稍等一秒再按一次"
+    exit 1
+fi
+export NIRI_THEME_LOCKED=1
+
+# 跟随开关：显式存过就按存的来，没存过默认跟随（但要有 matugen 才有实际效果）
+if [[ ${1:-} == --follow || ${1:-} == --no-follow ]]; then
+    if [[ $1 == --follow ]]; then
+        echo 1 > "$FOLLOW_FLAG"
+        echo "已开启：换壁纸后配色自动跟随（需要 matugen，未装则无效）"
+    else
+        echo 0 > "$FOLLOW_FLAG"
+        echo "已关闭：换壁纸不再改配色，用 theme 手动切换"
+    fi
+    exit 0
+fi
+
+FOLLOW=1
+[[ -f $FOLLOW_FLAG ]] && FOLLOW=$(cat "$FOLLOW_FLAG")
+
+# ── 壁纸取色 → 生成色板 → 整站换肤 ────────────
+follow_wallpaper_colors() {
+    local path=$1
+    (( FOLLOW )) || return 0
+    command -v matugen >/dev/null 2>&1 || return 0
+
+    # 同一张壁纸不用重复算（登录时 --apply 会走这里，避免每次都重算）
+    [[ -f $FOLLOW_CACHE ]] && [[ $(cat "$FOLLOW_CACHE") == "$path" ]] && return 0
+
+    local tmpjson
+    tmpjson=$(mktemp)
+    # WALL_CONTRAST=0.3 可以让取色结果对比度更高（-1 ~ 1），
+    # 遇到偏灰的壁纸导致顶栏文字发闷时调这个
+    local contrast_arg=()
+    [[ -n ${WALL_CONTRAST:-} ]] && contrast_arg=(--contrast "$WALL_CONTRAST")
+    if ! matugen image "$path" -m dark -j hex --prefer saturation --dry-run \
+            "${contrast_arg[@]}" > "$tmpjson" 2>/dev/null; then
+        rm -f "$tmpjson"
+        echo "matugen 取色失败，配色保持不变" >&2
+        return 1
+    fi
+    if "$HOME/.local/bin/matugen-palette" "$tmpjson" "$PALETTE_OUT" >/dev/null; then
+        "$HOME/.local/bin/theme" wallpaper >/dev/null 2>&1 \
+            && printf '%s\n' "$path" > "$FOLLOW_CACHE"
+    fi
+    rm -f "$tmpjson"
+}
+
+# ── 应用壁纸 ──────────────────────────────────
+apply_wallpaper() {
+    local path=$1
+
+    [[ -f $path ]] || { echo "文件不存在: $path" >&2; return 1; }
+
+    # 两套引擎互斥：先把另一套停掉，避免互相盖
+    if command -v awww >/dev/null 2>&1; then
+        # 守护进程没起来就先拉起来，最多等 3 秒
+        if ! awww query >/dev/null 2>&1; then
+            # 9>&- 很关键：不能把锁的 fd 继承给守护进程，
+            # 否则 awww-daemon 会一直攥着这把锁，之后每次换壁纸都卡到超时
+            setsid awww-daemon >/dev/null 2>&1 9>&- &
+            for _ in $(seq 30); do
+                awww query >/dev/null 2>&1 && break
+                sleep 0.1
+            done
+        fi
+
+        if awww query >/dev/null 2>&1; then
+            pkill -x swaybg 2>/dev/null
+
+            # wave / wipe 才吃角度和波形参数
+            local extra=()
+            case "$TRANSITION_TYPE" in
+                wave) extra=(--transition-angle "$TRANSITION_ANGLE" --transition-wave "$TRANSITION_WAVE") ;;
+                wipe) extra=(--transition-angle "$TRANSITION_ANGLE") ;;
+            esac
+
+            awww img --resize crop \
+                --transition-type "$TRANSITION_TYPE" \
+                --transition-duration "$TRANSITION_DURATION" \
+                --transition-fps 60 \
+                "${extra[@]}" \
+                "$path" && return 0
+        fi
+        echo "awww 不可用，退回 swaybg" >&2
+    fi
+
+    pkill -x swaybg 2>/dev/null
+    sleep 0.2
+    niri msg action spawn -- swaybg -i "$path" -m fill >/dev/null 2>&1
+}
+
+# ── 记住选择，供开机自启读取 ──────────────────
+save_state() {
+    mkdir -p "$(dirname "$STATE")"
+    printf '%s\n' "$1" > "$STATE"
+}
+
+# ── 直接应用模式 ──────────────────────────────
+if [[ ${1:-} == --apply ]]; then
+    apply_wallpaper "${2:?缺少图片路径}"
+    rc=$?
+    follow_wallpaper_colors "$2"
+    exit $rc
+fi
+
+# ── 收集候选图片（最多两层目录）──────────────
+mapfile -t files < <(find "$DIR" -maxdepth 2 -type f \
+    \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \) | sort)
+
+if (( ${#files[@]} == 0 )); then
+    notify-send -a "壁纸" "在 $DIR 里没找到图片"
+    exit 1
+fi
+
+# ── 挑一张 ────────────────────────────────────
+if [[ ${1:-} == --random ]]; then
+    path=${files[RANDOM % ${#files[@]}]}
+else
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+    for f in "${files[@]}"; do
+        printf '%s\t%s\n' "$(basename "$f")" "$f" >> "$tmp/map"
+    done
+    sel=$(cut -f1 "$tmp/map" |
+          fuzzel --dmenu --no-sort --prompt '  壁纸  ' --lines 12 --placeholder '选择壁纸') || exit 0
+    [[ -z ${sel:-} ]] && exit 0
+    path=$(awk -F'\t' -v s="$sel" '$1 == s { print $2; exit }' "$tmp/map")
+fi
+
+[[ -z ${path:-} || ! -f $path ]] && exit 0
+
+save_state "$path"
+apply_wallpaper "$path"
+follow_wallpaper_colors "$path"
+notify-send -a "壁纸" -i "$path" "壁纸已切换" "$(basename "$path")"

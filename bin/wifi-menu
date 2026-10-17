@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+# wifi-menu — fuzzel 版 Wi-Fi 选择器（NetworkManager / nmcli 后端）
+# 绑定：waybar 网络模块左键
+set -uo pipefail
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+declare -A sig sec inuse
+declare -a order=()
+
+# nmcli 字段：IN-USE:SIGNAL:SECURITY:SSID
+# 用参数展开逐段剥离，SSID 内含冒号也不会拆错
+while IFS= read -r line; do
+    [[ -z $line ]] && continue
+    inuse_raw=${line%%:*}; rest=${line#*:}
+    signal=${rest%%:*};    rest=${rest#*:}
+    security=${rest%%:*};  rest=${rest#*:}
+    ssid=$rest
+
+    [[ -z $ssid ]] && continue          # 隐藏网络跳过
+    [[ -n ${sig[$ssid]:-} ]] || order+=("$ssid")
+
+    # 同一 SSID 会被多个 BSSID 扫到，只留信号最好的
+    if [[ -z ${sig[$ssid]:-} ]] || (( signal > sig[$ssid] )); then
+        sig[$ssid]=$signal
+    fi
+    sec[$ssid]=$security
+    inuse[$ssid]=$inuse_raw
+done < <(nmcli -t -e no -f IN-USE,SIGNAL,SECURITY,SSID device wifi list --rescan yes 2>/dev/null)
+
+if (( ${#order[@]} == 0 )); then
+    notify-send -a "Wi-Fi" "没扫到任何 Wi-Fi 网络"
+    exit 1
+fi
+
+line_for() {
+    local ssid=$1 s=${sig[$1]} icon lock tag=''
+    if   (( s >= 75 )); then icon='󰤨'
+    elif (( s >= 50 )); then icon='󰤥'
+    elif (( s >= 25 )); then icon='󰤢'
+    else                     icon='󰤟'
+    fi
+    if [[ -n ${sec[$ssid]} ]]; then lock=''; else lock=''; fi
+    [[ ${inuse[$ssid]} == '*' ]] && tag=' 已连接'
+    printf '%s  %-26s %3d%%  %s%s' "$icon" "$ssid" "$s" "$lock" "$tag"
+}
+
+# 顺序：已连接的置顶，其余按信号强度降序
+{
+    for ssid in "${order[@]}"; do
+        [[ ${inuse[$ssid]} == '*' ]] && printf '%s\n' "$ssid"
+    done
+    for ssid in "${order[@]}"; do
+        [[ ${inuse[$ssid]} == '*' ]] && continue
+        printf '%d\t%s\n' "${sig[$ssid]}" "$ssid"
+    done | sort -t$'\t' -k1,1rn | cut -f2-
+} > "$tmp/ssids"
+
+: > "$tmp/display"; : > "$tmp/map"
+while IFS= read -r ssid; do
+    line=$(line_for "$ssid")
+    printf '%s\n' "$line" >> "$tmp/display"
+    printf '%s\t%s\n' "$line" "$ssid" >> "$tmp/map"
+done < "$tmp/ssids"
+
+# --no-sort：保住我按信号强度排好的顺序，否则 fuzzel 会自己重排
+selection=$(fuzzel --dmenu --no-sort --prompt '  Wi-Fi  ' \
+                  --placeholder '选择网络' --lines 12 < "$tmp/display")
+[[ -z ${selection:-} ]] && exit 0
+
+ssid=$(awk -F'\t' -v sel="$selection" '$1 == sel { print $2; exit }' "$tmp/map")
+[[ -z ${ssid:-} ]] && exit 0
+
+if [[ ${inuse[$ssid]} == '*' ]]; then
+    notify-send -a "Wi-Fi" "已经连着 $ssid 了"
+    exit 0
+fi
+
+if nmcli --wait 30 device wifi connect "$ssid" >/dev/null 2>&1; then
+    notify-send -a "Wi-Fi" "已连接 $ssid"
+else
+    # 需要密码或认证失败 → 开终端让 nmcli 交互式询问
+    konsole -e nmcli device wifi connect "$ssid" --ask
+fi

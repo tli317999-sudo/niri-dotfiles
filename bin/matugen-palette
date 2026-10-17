@@ -1,0 +1,111 @@
+#!/usr/bin/env python3
+"""matugen-palette — 把 matugen 的 JSON 转成 theme 脚本能读的色板文件
+
+用法: matugen-palette <matugen.json> <输出.conf> [NAME]
+"""
+import colorsys
+import json
+import sys
+
+if len(sys.argv) < 3:
+    sys.exit("用法: matugen-palette <matugen.json> <输出.conf> [NAME]")
+
+src, dst = sys.argv[1], sys.argv[2]
+name = sys.argv[3] if len(sys.argv) > 3 else "Wallpaper"
+
+
+def to_rgb(h):
+    h = h.lstrip("#")
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def to_hex(r, g, b):
+    clamp = lambda v: max(0, min(255, round(v * 255)))
+    return "#%02x%02x%02x" % (clamp(r), clamp(g), clamp(b))
+
+
+def rotate(hexc, deg, s_target=0.55, l_target=0.72):
+    """在 HLS 空间里转色相，并锁定饱和度/亮度，保证在深底上可读"""
+    r, g, b = (v / 255 for v in to_rgb(hexc))
+    h, _l, s = colorsys.rgb_to_hls(r, g, b)
+    h = (h + deg / 360.0) % 1.0
+    return to_hex(*colorsys.hls_to_rgb(h, l_target, min(s_target, max(s, 0.35))))
+
+
+def at_hue(deg, ref, s_target=0.52, l_target=0.70):
+    """锁定到绝对色相（保证角色语义正确：绿就是绿、黄就是黄），
+    明度和饱和度参考壁纸源色，这样亮度和主题一致"""
+    r, g, b = (v / 255 for v in to_rgb(ref))
+    _h, _l, s = colorsys.rgb_to_hls(r, g, b)
+    return to_hex(*colorsys.hls_to_rgb(deg / 360.0, l_target,
+                                       min(s_target, max(s, 0.35))))
+
+
+data = json.load(open(src, encoding="utf-8"))
+colors = data["colors"]
+
+
+def get(role, fallback=None):
+    """取 dark 模式下的颜色"""
+    try:
+        return colors[role]["dark"]["color"]
+    except KeyError:
+        if fallback:
+            return get(fallback)
+        raise SystemExit(f"matugen 输出里缺少颜色角色: {role}")
+
+
+primary = get("primary")
+
+
+def tinted(hexc, ref, dl=0.05, s_target=0.38):
+    """把 matugen 给的近黑灰重新染上源色的色相。
+
+    Material You 的深色 surface 永远在 #1a1a1a 附近（三张壁纸分别是
+    #131318 / #1a1112 / #181215），肉眼根本分不出来，所以顶栏看起来
+    "换壁纸也没变"。这里保留原来的明度层次、把饱和度提上去并稍微提亮，
+    让深色面也能看出是蓝调还是红调。
+    """
+    _, l, _ = _hls(hexc)
+    h, _, _ = _hls(ref)
+    return to_hex(*colorsys.hls_to_rgb(h, min(l + dl, 0.30), s_target))
+
+
+def _hls(hexc):
+    r, g, b = (v / 255 for v in to_rgb(hexc))
+    return colorsys.rgb_to_hls(r, g, b)
+
+
+palette = {
+    # 背景层次：base/crust 保持 matugen 的近黑（窗口主体要稳），
+    # 中间几档（顶栏、按钮、hover）重新染色，让它跟着壁纸色系走
+    "base": tinted(get("surface"), primary, dl=0.015, s_target=0.18),
+    "mantle": tinted(get("surface_container_low"), primary),
+    "crust": get("surface_container_lowest"),
+    "surface0": tinted(get("surface_container"), primary),
+    "surface1": tinted(get("surface_container_high"), primary),
+    "surface2": tinted(get("surface_container_highest"), primary),
+    # 文字层次
+    "overlay0": get("outline_variant", "outline"),
+    "subtext0": get("on_surface_variant"),
+    "text": get("on_surface"),
+    # 强调色：Material You 只有 primary/secondary/tertiary/error，
+    # 语义色（绿/黄/橙/青）锁到绝对色相，避免"绿变黄、黄变橙"
+    "blue": primary,
+    "purple": get("tertiary"),
+    "teal": get("secondary"),
+    "red": get("error"),
+    "green": at_hue(140, primary),
+    "yellow": at_hue(50, primary),
+    "orange": at_hue(25, primary),
+    "cyan": at_hue(190, primary),
+}
+
+lines = [f'NAME="{name}"']
+for role, value in palette.items():
+    lines.append(f"{role}={value.lstrip('#')}")
+
+with open(dst, "w", encoding="utf-8") as f:
+    f.write("\n".join(lines) + "\n")
+
+print(f"已生成 {dst}（源色 {primary}）")

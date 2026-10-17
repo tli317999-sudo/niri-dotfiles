@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# wallpaper-start — 开机自启时还原上次选的壁纸
+# 由 niri 的 spawn-sh-at-startup 调用；实际引擎选择在 wallpaper 脚本里
+set -uo pipefail
+
+STATE="${XDG_CONFIG_HOME:-$HOME/.config}/niri/wallpaper"
+FALLBACK="$HOME/Pictures/calm-forest-landscape-under-clouds-hu-3840x2160.jpg"
+
+path=$(head -n1 "$STATE" 2>/dev/null)
+[[ -n ${path:-} && -f $path ]] || path=$FALLBACK
+
+exec "$HOME/.local/bin/wallpaper" --apply "$path"

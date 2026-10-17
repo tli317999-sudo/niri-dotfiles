@@ -1,0 +1,124 @@
+{
+    "layer": "top",
+    "position": "top",
+    "height": 34,
+    "spacing": 6,
+    "margin-top": 6,
+    "margin-left": 8,
+    "margin-right": 8,
+
+    "modules-left": ["niri/workspaces", "niri/window"],
+    "modules-center": ["clock"],
+    "modules-right": ["mpris", "pulseaudio", "network", "cpu", "memory", "battery", "tray", "custom/power"],
+
+    "niri/workspaces": {
+        "format": "{index}",
+        "all-outputs": false
+    },
+
+    "niri/window": {
+        "format": "{title}",
+        "max-length": 48,
+        "icon": true,
+        "icon-size": 15
+    },
+
+    "clock": {
+        "format": "{:%H:%M}",
+        "format-alt": "{:%m-%d  %A}",
+        "tooltip-format": "<tt><small>{calendar}</small></tt>",
+        "calendar": {
+            "mode": "month",
+            "mode-mon-col": 3,
+            "weeks-pos": "right",
+            "on-scroll": 1,
+            "format": {
+                "months": "<span color='#{{blue}}'><b>{}</b></span>",
+                "days": "<span color='#{{text}}'>{}</span>",
+                "weekdays": "<span color='#{{purple}}'><b>{}</b></span>",
+                "today": "<span color='#{{yellow}}'><b>{}</b></span>"
+            }
+        },
+        "actions": {
+            "on-click": "mode",
+            "on-click-right": "mode"
+        }
+    },
+
+    "mpris": {
+        "format": "{player_icon} {dynamic}",
+        "format-paused": "{status_icon} <i>{dynamic}</i>",
+        "dynamic-len": 32,
+        "player-icons": {
+            "default": "▶"
+        },
+        "status-icons": {
+            "paused": "⏸"
+        },
+        "ignored-players": ["firefox"],
+        "on-click": "playerctl play-pause",
+        "on-click-right": "playerctl next",
+        "on-click-middle": "playerctl previous"
+    },
+
+    "pulseaudio": {
+        "format": "{icon}  {volume}%",
+        "format-muted": "󰝟  静音",
+        "format-icons": {
+            "headphone": "󰋋",
+            "default": ["󰕿", "󰖀", "󰕾"]
+        },
+        "scroll-step": 5,
+        "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+        "on-click-right": "kcmshell6 kcm_pulseaudio"
+    },
+
+    "network": {
+        "format-wifi": "{icon}  {essid}",
+        "format-ethernet": "󰈀  {ipaddr}",
+        "format-disconnected": "󰤭  未连接",
+        "tooltip-format": "{ifname}  {ipaddr}/{cidr}\n网关 {gwaddr}\n左键选网 · 右键开关 Wi-Fi · 中键图形化管理",
+        "format-icons": ["󰤯", "󰤟", "󰤢", "󰤥", "󰤨"],
+        "on-click": "$HOME/.local/bin/wifi-menu",
+        "on-click-right": "$HOME/.local/bin/wifi-toggle",
+        "on-click-middle": "nm-connection-editor"
+    },
+
+    "cpu": {
+        "format": "󰻠  {usage}%",
+        "interval": 2,
+        "tooltip-format": "负载 {load}\n点击打开系统监视器",
+        "on-click": "plasma-systemmonitor"
+    },
+
+    "memory": {
+        "format": "󰍛  {percentage}%",
+        "interval": 3,
+        "tooltip-format": "已用 {used:0.1f}G / 共 {total:0.1f}G\n点击打开系统监视器",
+        "on-click": "plasma-systemmonitor"
+    },
+
+    "battery": {
+        "format": "{icon}  {capacity}%",
+        "format-charging": "󰂄  {capacity}%",
+        "format-plugged": "󰂄  {capacity}%",
+        "format-icons": ["󰂎", "󰁺", "󰁻", "󰁽", "󰁿", "󰂁", "󰂂", "󰁹"],
+        "states": {
+            "warning": 30,
+            "critical": 15
+        },
+        "tooltip-format": "{timeTo}  {power:0.1f}W\n点击打开电源管理",
+        "on-click": "kcmshell6 kcm_powerdevilprofilesconfig"
+    },
+
+    "tray": {
+        "icon-size": 15,
+        "spacing": 8
+    },
+
+    "custom/power": {
+        "format": "\uf011",
+        "tooltip": false,
+        "on-click": "$HOME/.local/bin/power-menu"
+    }
+}

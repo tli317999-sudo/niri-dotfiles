@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# wifi-toggle — 开关 Wi-Fi 无线电
+# 绑定：waybar 网络模块右键
+set -uo pipefail
+
+state=$(nmcli -t -f WIFI radio | cut -d: -f2)
+
+if [[ $state == enabled ]]; then
+    nmcli radio wifi off && notify-send -a "Wi-Fi" "Wi-Fi 已关闭"
+else
+    nmcli radio wifi on && notify-send -a "Wi-Fi" "Wi-Fi 已开启"
+fi
